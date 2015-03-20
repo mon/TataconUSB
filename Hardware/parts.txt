@@ -6,3 +6,6 @@ crystal
 
 http://au.rs-online.com/web/p/type-a-usb-connectors/8006797/
 USB connector
+
+http://au.rs-online.com/web/p/tactile-switches/7931605/
+switch
