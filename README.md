@@ -9,6 +9,9 @@ discovered, I'd love to hear it. It appears to be inherent to the controller.
 At console, run `make`. You will need AVR GCC installed.
 
 ##Building hardware:
+Send V3 Gerbers to a PCB fab and have fun with fiddly soldering. If you want
+a little less fiddling:
+
 Send the Gerbers for V2 to a PCB fab, or generate them yourself from the v0.2 tag
 files. Altium Designer was used, open TataconUSB.PrjPcb as the main file.
 
