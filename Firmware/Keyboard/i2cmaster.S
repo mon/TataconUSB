@@ -40,8 +40,8 @@
 
 ;***** Adapt these SCA and SCL port and pin definition to your target !!
 ;
-#define SDA     	1		// SDA Port D, Pin 4   
-#define SCL		0		// SCL Port D, Pin 5
+#define SDA     4		// SDA Port D, Pin 4
+#define SCL		3		// SCL Port D, Pin 3
 #define SDA_PORT        PORTD           // SDA Port D
 #define SCL_PORT        PORTD           // SCL Port D         
 
@@ -72,8 +72,8 @@
 	.stabs	"i2cmaster.S",100,0,0,i2c_delay_T2
 	.func i2c_delay_T2	; delay 1.25 microsec with 8 Mhz crystal	
 i2c_delay_T2:        ; 4 cycles
-	rjmp 1f      ; 2   "
-1:	nop          ; 1   "
+	;rjmp 1f      ; 2   "
+;1:	nop          ; 1   "
 	ret          ; 3   "
 	.endfunc     ; total 10 cyles = 1.25 microsec with 8 Mhz crystal 
 

@@ -37,30 +37,36 @@
 #include "Keyboard.h"
 #include "i2cmaster.h"
 
+#define LED_DIR  DDRD
+#define LED_PORT PORTD
+#define DON_LED_PIN  6
+#define KAT_LED_PIN  5
+
+#define SET(port, pin) port |= _BV(pin)
+#define CLEAR(port, pin) port &= ~_BV(pin)
+
 /** Buffer to hold the previously generated Keyboard HID report, for comparison purposes inside the HID class driver. */
 static uint8_t PrevKeyboardHIDReportBuffer[sizeof(USB_KeyboardReport_Data_t)];
-
-void (* BootReset) (void) = 0x0800;
 
 /** LUFA HID Class driver interface configuration and state information. This structure is
  *  passed to all HID Class driver functions, so that multiple instances of the same class
  *  within a device can be differentiated from one another.
  */
 USB_ClassInfo_HID_Device_t Keyboard_HID_Interface =
-	{
-		.Config =
-			{
-				.InterfaceNumber              = INTERFACE_ID_Keyboard,
-				.ReportINEndpoint             =
-					{
-						.Address              = KEYBOARD_EPADDR,
-						.Size                 = KEYBOARD_EPSIZE,
-						.Banks                = 1,
-					},
-				.PrevReportINBuffer           = PrevKeyboardHIDReportBuffer,
-				.PrevReportINBufferSize       = sizeof(PrevKeyboardHIDReportBuffer),
-			},
-	};
+{
+    .Config =
+        {
+            .InterfaceNumber              = INTERFACE_ID_Keyboard,
+            .ReportINEndpoint             =
+                {
+                    .Address              = KEYBOARD_EPADDR,
+                    .Size                 = KEYBOARD_EPSIZE,
+                    .Banks                = 1,
+                },
+            .PrevReportINBuffer           = PrevKeyboardHIDReportBuffer,
+            .PrevReportINBufferSize       = sizeof(PrevKeyboardHIDReportBuffer),
+        },
+};
 
     
 typedef struct {
@@ -76,35 +82,56 @@ static const uint8_t switch_mapping[] = {HID_KEYBOARD_SC_X,
                                          HID_KEYBOARD_SC_DOT_AND_GREATER_THAN_SIGN,
                                          HID_KEYBOARD_SC_SLASH_AND_QUESTION_MARK };
 static uint8_t switchesChanged = 1;
+static uint8_t nunchuckReady = 0;
 
 //todo: neater
-#define NUNCHUCK_ADDR 0xA4 // 0x52 << 1
+#define NUNCHUCK_ADDR (0x52 << 1)
+void Nunchuck_back(void) {
+    nunchuckReady = 1;
+    // Turn LEDs on until it returns
+    CLEAR(LED_PORT, DON_LED_PIN);
+    CLEAR(LED_PORT, KAT_LED_PIN);
+}
+void Nunchuck_gone(void) {
+    nunchuckReady = 0;
+    // Turn LEDs on until it returns
+    SET(LED_PORT, DON_LED_PIN);
+    SET(LED_PORT, KAT_LED_PIN);
+}
 void Nunchuck_Init(void) {
-    i2c_init();
-    // say hello
-    i2c_start(NUNCHUCK_ADDR + I2C_WRITE);
-    i2c_write(0xF0);
-    i2c_write(0x55);
-    i2c_stop();
-    
-    i2c_start(NUNCHUCK_ADDR + I2C_WRITE);
-    i2c_write(0xFB);
-    i2c_write(0x00);
-    i2c_stop();
+    // try to say hello
+    if(!i2c_start(NUNCHUCK_ADDR | I2C_WRITE)) {
+        i2c_write(0xF0);
+        i2c_write(0x55);
+        i2c_stop();
+        
+        i2c_start(NUNCHUCK_ADDR | I2C_WRITE);
+        i2c_write(0xFB);
+        i2c_write(0x00);
+        i2c_stop();
+        Nunchuck_back();
+    } else {
+        Nunchuck_gone();
+    }
 }
 
 uint8_t Nunchuck_ReadByte(uint8_t address) {
-    uint8_t data;
+    uint8_t data = 0xFF;
+    
+    if(!nunchuckReady) {
+        Nunchuck_Init();
+    }
 
-    i2c_start(NUNCHUCK_ADDR + I2C_WRITE);
-    i2c_write(0x05);
-    i2c_stop();
-    
-    //i2c_start(NUNCHUCK_ADDR); 
-    i2c_start(NUNCHUCK_ADDR + I2C_READ);
-    data = i2c_readNak();
-    i2c_stop();
-    
+    if(!i2c_start(NUNCHUCK_ADDR | I2C_WRITE)) {
+        i2c_write(0x05);
+        i2c_stop();
+
+        i2c_start(NUNCHUCK_ADDR | I2C_READ);
+        data = i2c_readNak();
+        i2c_stop();
+    } else {
+        Nunchuck_gone();
+    }
     return data;
 }
 
@@ -144,7 +171,6 @@ int main(void)
 	{
 		HID_Device_USBTask(&Keyboard_HID_Interface);
 		USB_USBTask();
-        update_switches();
 	}
 }
 
@@ -156,9 +182,80 @@ void SetupHardware()
 	wdt_disable();
 
 	/* Hardware Initialization */
+    SET(LED_DIR, DON_LED_PIN);
+    SET(LED_DIR, KAT_LED_PIN);
+    // Turn them on until we init with the nunchuck
+    SET(LED_PORT, DON_LED_PIN);
+    SET(LED_PORT, KAT_LED_PIN);
+    i2c_init();
     Nunchuck_Init();
 	USB_Init();
 }
+
+/** HID class driver callback function for the creation of HID reports to the host.
+ *
+ *  \param[in]     HIDInterfaceInfo  Pointer to the HID class interface configuration structure being referenced
+ *  \param[in,out] ReportID    Report ID requested by the host if non-zero, otherwise callback should set to the generated report ID
+ *  \param[in]     ReportType  Type of the report to create, either HID_REPORT_ITEM_In or HID_REPORT_ITEM_Feature
+ *  \param[out]    ReportData  Pointer to a buffer where the created report should be stored
+ *  \param[out]    ReportSize  Number of bytes written in the report (or zero if no report is to be sent)
+ *
+ *  \return Boolean \c true to force the sending of the report, \c false to let the library determine if it needs to be sent
+ */
+bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t* const HIDInterfaceInfo,
+                                         uint8_t* const ReportID,
+                                         const uint8_t ReportType,
+                                         void* ReportData,
+                                         uint16_t* const ReportSize)
+{
+    uint8_t i;
+	USB_KeyboardReport_Data_t* KeyboardReport = (USB_KeyboardReport_Data_t*)ReportData;
+    
+    update_switches();
+    
+    if(!switchesChanged) {
+        return false;
+    }
+    
+    CLEAR(LED_PORT, DON_LED_PIN);
+    CLEAR(LED_PORT, KAT_LED_PIN);
+     
+    for(i = 0; i < 4; i++) {
+        KeyboardReport->KeyCode[i] = switches[i].state ? switch_mapping[i] : 0;
+        switches[i].lastReport = switches[i].state;
+        // Update blinkenlights
+        if(switches[i].state) {
+            if(i % 2) { // odd indexes are kat, even don
+                SET(LED_PORT, KAT_LED_PIN);
+            } else {
+                SET(LED_PORT, DON_LED_PIN);
+            }
+        }
+    }
+     
+	*ReportSize = sizeof(USB_KeyboardReport_Data_t);
+     
+    switchesChanged = 0;
+	return true;
+}
+
+/** HID class driver callback function for the processing of HID reports from the host.
+ *
+ *  \param[in] HIDInterfaceInfo  Pointer to the HID class interface configuration structure being referenced
+ *  \param[in] ReportID    Report ID of the received report from the host
+ *  \param[in] ReportType  The type of report that the host has sent, either HID_REPORT_ITEM_Out or HID_REPORT_ITEM_Feature
+ *  \param[in] ReportData  Pointer to a buffer where the received report has been stored
+ *  \param[in] ReportSize  Size in bytes of the received HID report
+ */
+void CALLBACK_HID_Device_ProcessHIDReport(USB_ClassInfo_HID_Device_t* const HIDInterfaceInfo,
+                                          const uint8_t ReportID,
+                                          const uint8_t ReportType,
+                                          const void* ReportData,
+                                          const uint16_t ReportSize)
+{
+
+}
+
 
 /** Event handler for the library USB Connection event. */
 void EVENT_USB_Device_Connect(void)
@@ -193,67 +290,3 @@ void EVENT_USB_Device_StartOfFrame(void)
 {
 	HID_Device_MillisecondElapsed(&Keyboard_HID_Interface);
 }
-
-/** HID class driver callback function for the creation of HID reports to the host.
- *
- *  \param[in]     HIDInterfaceInfo  Pointer to the HID class interface configuration structure being referenced
- *  \param[in,out] ReportID    Report ID requested by the host if non-zero, otherwise callback should set to the generated report ID
- *  \param[in]     ReportType  Type of the report to create, either HID_REPORT_ITEM_In or HID_REPORT_ITEM_Feature
- *  \param[out]    ReportData  Pointer to a buffer where the created report should be stored
- *  \param[out]    ReportSize  Number of bytes written in the report (or zero if no report is to be sent)
- *
- *  \return Boolean \c true to force the sending of the report, \c false to let the library determine if it needs to be sent
- */
-bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t* const HIDInterfaceInfo,
-                                         uint8_t* const ReportID,
-                                         const uint8_t ReportType,
-                                         void* ReportData,
-                                         uint16_t* const ReportSize)
-{
-    uint8_t i;
-	USB_KeyboardReport_Data_t* KeyboardReport = (USB_KeyboardReport_Data_t*)ReportData;
-    
-    if(!switchesChanged) {
-        return false;
-    }
-     
-    for(i = 0; i < 4; i++) {
-        KeyboardReport->KeyCode[i] = switches[i].state ? switch_mapping[i] : 0;
-        switches[i].lastReport = switches[i].state;
-    }
-     
-	*ReportSize = sizeof(USB_KeyboardReport_Data_t);
-     
-    switchesChanged = 0;
-	return true;
-}
-
-/** HID class driver callback function for the processing of HID reports from the host.
- *
- *  \param[in] HIDInterfaceInfo  Pointer to the HID class interface configuration structure being referenced
- *  \param[in] ReportID    Report ID of the received report from the host
- *  \param[in] ReportType  The type of report that the host has sent, either HID_REPORT_ITEM_Out or HID_REPORT_ITEM_Feature
- *  \param[in] ReportData  Pointer to a buffer where the received report has been stored
- *  \param[in] ReportSize  Size in bytes of the received HID report
- */
-void CALLBACK_HID_Device_ProcessHIDReport(USB_ClassInfo_HID_Device_t* const HIDInterfaceInfo,
-                                          const uint8_t ReportID,
-                                          const uint8_t ReportType,
-                                          const void* ReportData,
-                                          const uint16_t ReportSize)
-{
-	// uint8_t  LEDMask   = LEDS_NO_LEDS;
-	// uint8_t* LEDReport = (uint8_t*)ReportData;
-
-	// if (*LEDReport & HID_KEYBOARD_LED_NUMLOCK)
-	  // LEDMask |= LEDS_LED1;
-
-	// if (*LEDReport & HID_KEYBOARD_LED_CAPSLOCK)
-	  // LEDMask |= LEDS_LED3;
-
-	// if (*LEDReport & HID_KEYBOARD_LED_SCROLLLOCK)
-	  // LEDMask |= LEDS_LED4;
-
-	// LEDs_SetAllLEDs(LEDMask);
-}
-

@@ -23,6 +23,9 @@ LUFA_PATH    = ../LUFA
 CC_FLAGS     = -DUSE_LUFA_CONFIG_HEADER -IConfig/
 LD_FLAGS     =
 
+AVRDUDE      = avrdude -B 8 -c usbasp -p $(MCU)
+
+
 # Default target
 all:
 
@@ -36,3 +39,25 @@ include $(LUFA_PATH)/Build/lufa_dfu.mk
 include $(LUFA_PATH)/Build/lufa_hid.mk
 include $(LUFA_PATH)/Build/lufa_avrdude.mk
 include $(LUFA_PATH)/Build/lufa_atprogram.mk
+
+init: erase wfuse flashboot
+
+erase:
+	$(AVRDUDE) -e
+
+rfuse:
+	$(AVRDUDE) -U hfuse:r:-:h -U lfuse:r:-:h -U efuse:r:-:h
+
+wfuse:
+	$(AVRDUDE) -U lfuse:w:0xde:m -U hfuse:w:0xdb:m -U efuse:w:0xf6:m
+
+# To make this hex, compile HID Bootloader in LUFA
+# FLASH_SIZE_KB        := 16
+# BOOT_SECTION_SIZE_KB := 2
+# MCU          = atmega16u2
+# ARCH         = AVR8
+flashboot:
+	$(AVRDUDE) -U flash:w:DFU/BootloaderHID.hex:i
+
+flash: all
+	python DFU/hid_bootloader_loader.py atmega16u2 Keyboard.hex
