@@ -61,7 +61,7 @@ const USB_Descriptor_Device_t PROGMEM DeviceDescriptor =
 	.Header                 = {.Size = sizeof(USB_Descriptor_Device_t), .Type = DTYPE_Device},
 
 	.USBSpecification       = VERSION_BCD(1,1,0),
-	.Class                  = USB_CSCP_NoDeviceClass,
+	.Class                  = HID_CSCP_HIDClass,
 	.SubClass               = USB_CSCP_NoDeviceSubclass,
 	.Protocol               = USB_CSCP_NoDeviceProtocol,
 
@@ -77,6 +77,24 @@ const USB_Descriptor_Device_t PROGMEM DeviceDescriptor =
 
 	.NumberOfConfigurations = FIXED_NUM_CONFIGURATIONS
 };
+
+/** Language descriptor structure. This descriptor, located in FLASH memory, is returned when the host requests
+ *  the string descriptor with index 0 (the first index). It is actually an array of 16-bit integers, which indicate
+ *  via the language ID table available at USB.org what languages the device supports for its string descriptors.
+ */
+const USB_Descriptor_String_t PROGMEM LanguageString = USB_STRING_DESCRIPTOR_ARRAY(LANGUAGE_ID_ENG);
+
+/** Manufacturer descriptor string. This is a Unicode string containing the manufacturer's details in human readable
+ *  form, and is read out upon request by the host when the appropriate string ID is requested, listed in the Device
+ *  Descriptor.
+ */
+const USB_Descriptor_String_t PROGMEM ManufacturerString = USB_STRING_DESCRIPTOR(L"mon.im");
+
+/** Product descriptor string. This is a Unicode string containing the product's details in human readable form,
+ *  and is read out upon request by the host when the appropriate string ID is requested, listed in the Device
+ *  Descriptor.
+ */
+const USB_Descriptor_String_t PROGMEM ProductString = USB_STRING_DESCRIPTOR(L"Tatacon USB");
 
 /** Configuration descriptor structure. This descriptor, located in FLASH memory, describes the usage
  *  of the device in one of its supported configurations, including information about any device interfaces
@@ -137,24 +155,6 @@ const USB_Descriptor_Configuration_t PROGMEM ConfigurationDescriptor =
 			.PollingIntervalMS      = 0x01
 		},
 };
-
-/** Language descriptor structure. This descriptor, located in FLASH memory, is returned when the host requests
- *  the string descriptor with index 0 (the first index). It is actually an array of 16-bit integers, which indicate
- *  via the language ID table available at USB.org what languages the device supports for its string descriptors.
- */
-const USB_Descriptor_String_t PROGMEM LanguageString = USB_STRING_DESCRIPTOR_ARRAY(LANGUAGE_ID_ENG);
-
-/** Manufacturer descriptor string. This is a Unicode string containing the manufacturer's details in human readable
- *  form, and is read out upon request by the host when the appropriate string ID is requested, listed in the Device
- *  Descriptor.
- */
-const USB_Descriptor_String_t PROGMEM ManufacturerString = USB_STRING_DESCRIPTOR(L"mon.im");
-
-/** Product descriptor string. This is a Unicode string containing the product's details in human readable form,
- *  and is read out upon request by the host when the appropriate string ID is requested, listed in the Device
- *  Descriptor.
- */
-const USB_Descriptor_String_t PROGMEM ProductString = USB_STRING_DESCRIPTOR(L"Tatacon USB");
 
 /** This function is called by the library when in device mode, and must be overridden (see library "USB Descriptors"
  *  documentation) by the application code so that the address and size of a requested descriptor can be given
