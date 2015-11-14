@@ -36,6 +36,7 @@
 
 #include "Keyboard.h"
 #include "i2cmaster.h"
+#include "Config.h"
 
 #define LED_DIR  DDRD
 #define LED_PORT PORTD
@@ -44,9 +45,11 @@
 
 #define SET(port, pin) port |= _BV(pin)
 #define CLEAR(port, pin) port &= ~_BV(pin)
+#define TOGGLE(port, pin) port ^= _BV(pin)
 
 /** Buffer to hold the previously generated Keyboard HID report, for comparison purposes inside the HID class driver. */
 static uint8_t PrevKeyboardHIDReportBuffer[sizeof(USB_KeyboardReport_Data_t)];
+static uint8_t PrevGenericHIDReportBuffer[TATACON_CONFIG_BYTES];
 
 /** LUFA HID Class driver interface configuration and state information. This structure is
  *  passed to all HID Class driver functions, so that multiple instances of the same class
@@ -68,6 +71,21 @@ USB_ClassInfo_HID_Device_t Keyboard_HID_Interface =
         },
 };
 
+USB_ClassInfo_HID_Device_t Generic_HID_Interface =
+{
+    .Config =
+        {
+            .InterfaceNumber              = INTERFACE_ID_Generic,
+            .ReportINEndpoint             =
+                {
+                    .Address              = GENERIC_EPADDR,
+                    .Size                 = GENERIC_EPSIZE,
+                    .Banks                = 1,
+                },
+            .PrevReportINBuffer           = PrevGenericHIDReportBuffer,
+            .PrevReportINBufferSize       = sizeof(PrevGenericHIDReportBuffer),
+        },
+};
     
 typedef struct {
     // optimise data sending
@@ -75,12 +93,7 @@ typedef struct {
     uint8_t lastReport;
 } switch_t;
 
-// SWITCH ORDER: CenterLeft, RimLeft, CenterRight, RimRight
 static switch_t switches[4];
-static const uint8_t switch_mapping[] = {HID_KEYBOARD_SC_X,
-                                         HID_KEYBOARD_SC_Z,
-                                         HID_KEYBOARD_SC_DOT_AND_GREATER_THAN_SIGN,
-                                         HID_KEYBOARD_SC_SLASH_AND_QUESTION_MARK };
 static uint8_t switchesChanged = 1;
 static uint8_t nunchuckReady = 0;
 
@@ -97,6 +110,13 @@ void Nunchuck_gone(void) {
     // Turn LEDs on until it returns
     SET(LED_PORT, DON_LED_PIN);
     SET(LED_PORT, KAT_LED_PIN);
+    // Clear structs
+    for(int i = 0; i < 4; i++) {
+        switches[i].state = 0;
+        if(switches[i].lastReport) {
+            switchesChanged = 1;
+        }
+    }
 }
 void Nunchuck_Init(void) {
     // try to say hello
@@ -158,10 +178,12 @@ int main(void)
 {
     uint8_t i;
     // Clear structs
-    for(i = 0; i < 2; i++) {
+    for(i = 0; i < 4; i++) {
         switches[i].state = 0;
         switches[i].lastReport = 0;
     }
+    
+    InitConfig();
     
 	SetupHardware();
 
@@ -170,6 +192,7 @@ int main(void)
 	for (;;)
 	{
 		HID_Device_USBTask(&Keyboard_HID_Interface);
+		HID_Device_USBTask(&Generic_HID_Interface);
 		USB_USBTask();
 	}
 }
@@ -184,9 +207,11 @@ void SetupHardware()
 	/* Hardware Initialization */
     SET(LED_DIR, DON_LED_PIN);
     SET(LED_DIR, KAT_LED_PIN);
-    // Turn them on until we init with the nunchuck
-    SET(LED_PORT, DON_LED_PIN);
-    SET(LED_PORT, KAT_LED_PIN);
+    if(tataConfig.ledsOn) {
+        // Turn them on until we init with the nunchuck
+        SET(LED_PORT, DON_LED_PIN);
+        SET(LED_PORT, KAT_LED_PIN);
+    }
     i2c_init();
     Nunchuck_Init();
 	USB_Init();
@@ -209,38 +234,47 @@ bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t* const HIDIn
                                          uint16_t* const ReportSize)
 {
     uint8_t i;
+    if(ReportType != HID_REPORT_ITEM_In) {
+        *ReportSize = 0;
+        return false;
+    }
     if (HIDInterfaceInfo == &Keyboard_HID_Interface) {
-        if(ReportType == HID_REPORT_ITEM_In) {
-            update_switches();
-            
-            if(!switchesChanged) {
-                return false;
-            }
-            
-            CLEAR(LED_PORT, DON_LED_PIN);
-            CLEAR(LED_PORT, KAT_LED_PIN);
-            
-            USB_KeyboardReport_Data_t* KeyboardReport = (USB_KeyboardReport_Data_t*)ReportData;
-             
-            for(i = 0; i < 4; i++) {
-                KeyboardReport->KeyCode[i] = switches[i].state ? switch_mapping[i] : 0;
-                switches[i].lastReport = switches[i].state;
-                // Update blinkenlights
-                if(switches[i].state) {
-                    if(i % 2) { // odd indexes are kat, even don
-                        SET(LED_PORT, KAT_LED_PIN);
-                    } else {
-                        SET(LED_PORT, DON_LED_PIN);
-                    }
+        update_switches();
+        
+        if(!switchesChanged) {
+            *ReportSize = 0;
+            return false;
+        }
+        
+        CLEAR(LED_PORT, DON_LED_PIN);
+        CLEAR(LED_PORT, KAT_LED_PIN);
+        
+        USB_KeyboardReport_Data_t* KeyboardReport = (USB_KeyboardReport_Data_t*)ReportData;
+         
+        for(i = 0; i < 4; i++) {
+            KeyboardReport->KeyCode[i] = switches[i].state ? tataConfig.switches[i] : 0;
+            switches[i].lastReport = switches[i].state;
+            // Update blinkenlights
+            if(switches[i].state) {
+                if(i % 2 && tataConfig.ledsOn) { // odd indexes are kat, even don
+                    SET(LED_PORT, KAT_LED_PIN);
+                } else {
+                    SET(LED_PORT, DON_LED_PIN);
                 }
             }
-             
-            *ReportSize = sizeof(USB_KeyboardReport_Data_t);
-             
-            switchesChanged = 0;
-            return true;
         }
+         
+        *ReportSize = sizeof(USB_KeyboardReport_Data_t);
+         
+        switchesChanged = 0;
+        return true;
+    } else if(HIDInterfaceInfo == &Generic_HID_Interface) {
+        uint8_t* ConfigReport = (uint8_t*)ReportData;
+        memcpy(ConfigReport, &tataConfig, sizeof(tatacon_config_t));
+        *ReportSize = TATACON_CONFIG_BYTES;
+        return true;
     }
+    *ReportSize = 0;
     return false;
 
 }
@@ -259,7 +293,10 @@ void CALLBACK_HID_Device_ProcessHIDReport(USB_ClassInfo_HID_Device_t* const HIDI
                                           const void* ReportData,
                                           const uint16_t ReportSize)
 {
-
+    if(HIDInterfaceInfo == &Generic_HID_Interface && ReportType == HID_REPORT_ITEM_Out) {
+        uint8_t* ConfigReport = (uint8_t*)ReportData;
+        SetConfig(ConfigReport);
+    }
 }
 
 
@@ -279,7 +316,7 @@ void EVENT_USB_Device_Disconnect(void)
 void EVENT_USB_Device_ConfigurationChanged(void)
 {
 	HID_Device_ConfigureEndpoints(&Keyboard_HID_Interface);
-    Endpoint_ConfigureEndpoint(GENERIC_EPADDR, EP_TYPE_INTERRUPT, GENERIC_EPSIZE, 1);
+	HID_Device_ConfigureEndpoints(&Generic_HID_Interface);
 
 	USB_Device_EnableSOFEvents();
 }
@@ -288,72 +325,12 @@ void EVENT_USB_Device_ConfigurationChanged(void)
 void EVENT_USB_Device_ControlRequest(void)
 {
 	HID_Device_ProcessControlRequest(&Keyboard_HID_Interface);
-    
-    
-    /* Ignore any requests that aren't directed to the HID interface */
-	if ((USB_ControlRequest.bmRequestType & (CONTROL_REQTYPE_TYPE | CONTROL_REQTYPE_RECIPIENT)) !=
-	    (REQTYPE_CLASS | REQREC_INTERFACE))
-	{
-		return;
-	}
-
-	/* Process HID specific control requests */
-	switch (USB_ControlRequest.bRequest)
-	{
-		case HID_REQ_SetReport:
-			/*Endpoint_ClearSETUP();
-
-			// Wait until the command has been sent by the host
-			while (!(Endpoint_IsOUTReceived()));
-
-			// Read in the write destination address
-			#if (FLASHEND > 0xFFFF)
-			uint32_t PageAddress = ((uint32_t)Endpoint_Read_16_LE() << 8);
-			#else
-			uint16_t PageAddress = Endpoint_Read_16_LE();
-			#endif
-
-			// Check if the command is a program page command, or a start application command
-			#if (FLASHEND > 0xFFFF)
-			if ((uint16_t)(PageAddress >> 8) == COMMAND_STARTAPPLICATION)
-			#else
-			if (PageAddress == COMMAND_STARTAPPLICATION)
-			#endif
-			{
-				RunBootloader = false;
-			}
-			else
-			{
-				boot_page_erase(PageAddress);
-				boot_spm_busy_wait();
-
-				for (uint8_t PageWord = 0; PageWord < (SPM_PAGESIZE / 2); PageWord++)
-				{
-					// Check if endpoint is empty - if so clear it and wait until ready for next packet
-					if (!(Endpoint_BytesInEndpoint()))
-					{
-						Endpoint_ClearOUT();
-						while (!(Endpoint_IsOUTReceived()));
-					}
-
-					boot_page_fill(PageAddress + ((uint16_t)PageWord << 1), Endpoint_Read_16_LE());
-				}
-
-				boot_page_write(PageAddress);
-				boot_spm_busy_wait();
-
-				boot_rww_enable();
-			}
-
-			Endpoint_ClearOUT();
-
-			Endpoint_ClearStatusStage();*/
-			break;
-	}
+	HID_Device_ProcessControlRequest(&Generic_HID_Interface);
 }
 
 /** Event handler for the USB device Start Of Frame event. */
 void EVENT_USB_Device_StartOfFrame(void)
 {
 	HID_Device_MillisecondElapsed(&Keyboard_HID_Interface);
+	HID_Device_MillisecondElapsed(&Generic_HID_Interface);
 }

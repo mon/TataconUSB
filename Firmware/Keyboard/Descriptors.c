@@ -51,11 +51,16 @@ const USB_Descriptor_HIDReport_Datatype_t PROGMEM GenericReport[] =
 		HID_RI_USAGE(8, 0x02), /* Vendor Usage 2 */
 		HID_RI_LOGICAL_MINIMUM(8, 0x00),
 		HID_RI_LOGICAL_MAXIMUM(8, 0xFF),
-        HID_RI_REPORT_SIZE(8, 0x08),
-		HID_RI_REPORT_COUNT(16, (sizeof(uint16_t) + SPM_PAGESIZE)),
-		//HID_RI_REPORT_SIZE(8, 1),
-		//HID_RI_REPORT_COUNT(8, TATACON_CONFIG_BYTES),
+		HID_RI_REPORT_SIZE(8, 8),
+		HID_RI_REPORT_COUNT(8, TATACON_CONFIG_BYTES),
 		HID_RI_OUTPUT(8, HID_IOF_DATA | HID_IOF_VARIABLE | HID_IOF_ABSOLUTE | HID_IOF_NON_VOLATILE),
+        
+        HID_RI_USAGE(8, 0x02), /* Vendor Usage 2 */
+		HID_RI_LOGICAL_MINIMUM(8, 0x00),
+		HID_RI_LOGICAL_MAXIMUM(8, 0xFF),
+		HID_RI_REPORT_SIZE(8, 8),
+		HID_RI_REPORT_COUNT(8, TATACON_CONFIG_BYTES),
+		HID_RI_INPUT(8, HID_IOF_DATA | HID_IOF_VARIABLE | HID_IOF_ABSOLUTE | HID_IOF_NON_VOLATILE),
 	HID_RI_END_COLLECTION(0),
 };
 
@@ -194,7 +199,7 @@ const USB_Descriptor_Configuration_t PROGMEM ConfigurationDescriptor =
 			.EndpointAddress        = GENERIC_EPADDR,
 			.Attributes             = (EP_TYPE_INTERRUPT | ENDPOINT_ATTR_NO_SYNC | ENDPOINT_USAGE_DATA),
 			.EndpointSize           = GENERIC_EPSIZE,
-			.PollingIntervalMS      = 20
+			.PollingIntervalMS      = 255
 		},
 };
 
@@ -214,10 +219,10 @@ const USB_Descriptor_String_t PROGMEM ManufacturerString = USB_STRING_DESCRIPTOR
  *  and is read out upon request by the host when the appropriate string ID is requested, listed in the Device
  *  Descriptor.
  */
-const USB_Descriptor_String_t PROGMEM ProductString = USB_STRING_DESCRIPTOR(L"Tatacon to USB");
+const USB_Descriptor_String_t PROGMEM ProductString = USB_STRING_DESCRIPTOR(L"Tatacon to USB Converter");
 
 
-const USB_Descriptor_String_t PROGMEM ConfigString = USB_STRING_DESCRIPTOR(L"Tatacon Configuration");
+const USB_Descriptor_String_t PROGMEM ConfigString = USB_STRING_DESCRIPTOR(L"Tatacon Config");
 
 const USB_Descriptor_String_t PROGMEM TataconString = USB_STRING_DESCRIPTOR(L"Tatacon");
 

@@ -41,7 +41,7 @@
 
 		#include <LUFA/Drivers/USB/USB.h>
         
-        #define TATACON_CONFIG_BYTES 8
+        #include "Config.h"
 
 	/* Type Defines: */
 		/** Type define for the device configuration descriptor structure. This must be defined in the
@@ -94,7 +94,7 @@
 
 		/** Size in bytes of the Keyboard HID reporting IN endpoint. */
 		#define KEYBOARD_EPSIZE              8
-		#define GENERIC_EPSIZE               64
+		#define GENERIC_EPSIZE               TATACON_CONFIG_BYTES
 
 	/* Function Prototypes: */
 		uint16_t CALLBACK_USB_GetDescriptor(const uint16_t wValue,
