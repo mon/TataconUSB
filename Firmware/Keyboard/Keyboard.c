@@ -209,34 +209,40 @@ bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t* const HIDIn
                                          uint16_t* const ReportSize)
 {
     uint8_t i;
-	USB_KeyboardReport_Data_t* KeyboardReport = (USB_KeyboardReport_Data_t*)ReportData;
-    
-    update_switches();
-    
-    if(!switchesChanged) {
-        return false;
-    }
-    
-    CLEAR(LED_PORT, DON_LED_PIN);
-    CLEAR(LED_PORT, KAT_LED_PIN);
-     
-    for(i = 0; i < 4; i++) {
-        KeyboardReport->KeyCode[i] = switches[i].state ? switch_mapping[i] : 0;
-        switches[i].lastReport = switches[i].state;
-        // Update blinkenlights
-        if(switches[i].state) {
-            if(i % 2) { // odd indexes are kat, even don
-                SET(LED_PORT, KAT_LED_PIN);
-            } else {
-                SET(LED_PORT, DON_LED_PIN);
+    if (HIDInterfaceInfo == &Keyboard_HID_Interface) {
+        if(ReportType == HID_REPORT_ITEM_In) {
+            update_switches();
+            
+            if(!switchesChanged) {
+                return false;
             }
+            
+            CLEAR(LED_PORT, DON_LED_PIN);
+            CLEAR(LED_PORT, KAT_LED_PIN);
+            
+            USB_KeyboardReport_Data_t* KeyboardReport = (USB_KeyboardReport_Data_t*)ReportData;
+             
+            for(i = 0; i < 4; i++) {
+                KeyboardReport->KeyCode[i] = switches[i].state ? switch_mapping[i] : 0;
+                switches[i].lastReport = switches[i].state;
+                // Update blinkenlights
+                if(switches[i].state) {
+                    if(i % 2) { // odd indexes are kat, even don
+                        SET(LED_PORT, KAT_LED_PIN);
+                    } else {
+                        SET(LED_PORT, DON_LED_PIN);
+                    }
+                }
+            }
+             
+            *ReportSize = sizeof(USB_KeyboardReport_Data_t);
+             
+            switchesChanged = 0;
+            return true;
         }
     }
-     
-	*ReportSize = sizeof(USB_KeyboardReport_Data_t);
-     
-    switchesChanged = 0;
-	return true;
+    return false;
+
 }
 
 /** HID class driver callback function for the processing of HID reports from the host.
@@ -272,9 +278,8 @@ void EVENT_USB_Device_Disconnect(void)
 /** Event handler for the library USB Configuration Changed event. */
 void EVENT_USB_Device_ConfigurationChanged(void)
 {
-	bool ConfigSuccess = true;
-
-	ConfigSuccess &= HID_Device_ConfigureEndpoints(&Keyboard_HID_Interface);
+	HID_Device_ConfigureEndpoints(&Keyboard_HID_Interface);
+    Endpoint_ConfigureEndpoint(GENERIC_EPADDR, EP_TYPE_INTERRUPT, GENERIC_EPSIZE, 1);
 
 	USB_Device_EnableSOFEvents();
 }
@@ -283,6 +288,68 @@ void EVENT_USB_Device_ConfigurationChanged(void)
 void EVENT_USB_Device_ControlRequest(void)
 {
 	HID_Device_ProcessControlRequest(&Keyboard_HID_Interface);
+    
+    
+    /* Ignore any requests that aren't directed to the HID interface */
+	if ((USB_ControlRequest.bmRequestType & (CONTROL_REQTYPE_TYPE | CONTROL_REQTYPE_RECIPIENT)) !=
+	    (REQTYPE_CLASS | REQREC_INTERFACE))
+	{
+		return;
+	}
+
+	/* Process HID specific control requests */
+	switch (USB_ControlRequest.bRequest)
+	{
+		case HID_REQ_SetReport:
+			/*Endpoint_ClearSETUP();
+
+			// Wait until the command has been sent by the host
+			while (!(Endpoint_IsOUTReceived()));
+
+			// Read in the write destination address
+			#if (FLASHEND > 0xFFFF)
+			uint32_t PageAddress = ((uint32_t)Endpoint_Read_16_LE() << 8);
+			#else
+			uint16_t PageAddress = Endpoint_Read_16_LE();
+			#endif
+
+			// Check if the command is a program page command, or a start application command
+			#if (FLASHEND > 0xFFFF)
+			if ((uint16_t)(PageAddress >> 8) == COMMAND_STARTAPPLICATION)
+			#else
+			if (PageAddress == COMMAND_STARTAPPLICATION)
+			#endif
+			{
+				RunBootloader = false;
+			}
+			else
+			{
+				boot_page_erase(PageAddress);
+				boot_spm_busy_wait();
+
+				for (uint8_t PageWord = 0; PageWord < (SPM_PAGESIZE / 2); PageWord++)
+				{
+					// Check if endpoint is empty - if so clear it and wait until ready for next packet
+					if (!(Endpoint_BytesInEndpoint()))
+					{
+						Endpoint_ClearOUT();
+						while (!(Endpoint_IsOUTReceived()));
+					}
+
+					boot_page_fill(PageAddress + ((uint16_t)PageWord << 1), Endpoint_Read_16_LE());
+				}
+
+				boot_page_write(PageAddress);
+				boot_spm_busy_wait();
+
+				boot_rww_enable();
+			}
+
+			Endpoint_ClearOUT();
+
+			Endpoint_ClearStatusStage();*/
+			break;
+	}
 }
 
 /** Event handler for the USB device Start Of Frame event. */

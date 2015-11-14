@@ -40,6 +40,8 @@
 		#include <avr/pgmspace.h>
 
 		#include <LUFA/Drivers/USB/USB.h>
+        
+        #define TATACON_CONFIG_BYTES 8
 
 	/* Type Defines: */
 		/** Type define for the device configuration descriptor structure. This must be defined in the
@@ -51,9 +53,14 @@
 			USB_Descriptor_Configuration_Header_t Config;
 
 			// Keyboard HID Interface
-			USB_Descriptor_Interface_t            HID_Interface;
-			USB_HID_Descriptor_HID_t              HID_KeyboardHID;
-			USB_Descriptor_Endpoint_t             HID_ReportINEndpoint;
+			USB_Descriptor_Interface_t            HID1_Interface;
+			USB_HID_Descriptor_HID_t              HID1_KeyboardHID;
+			USB_Descriptor_Endpoint_t             HID1_ReportINEndpoint;
+            
+            // Generic HID Interface
+			USB_Descriptor_Interface_t            HID2_Interface;
+			USB_HID_Descriptor_HID_t              HID2_VendorHID;
+			USB_Descriptor_Endpoint_t             HID2_ReportINEndpoint;
 		} USB_Descriptor_Configuration_t;
 
 		/** Enum for the device interface descriptor IDs within the device. Each interface descriptor
@@ -63,6 +70,7 @@
 		enum InterfaceDescriptors_t
 		{
 			INTERFACE_ID_Keyboard = 0, /**< Keyboard interface descriptor ID */
+            INTERFACE_ID_Generic =  1  /**< Generic interface descriptor ID  */
 		};
 
 		/** Enum for the device string descriptor IDs within the device. Each string descriptor should
@@ -74,14 +82,19 @@
 			STRING_ID_Language     = 0, /**< Supported Languages string descriptor ID (must be zero) */
 			STRING_ID_Manufacturer = 1, /**< Manufacturer string ID */
 			STRING_ID_Product      = 2, /**< Product string ID */
+			STRING_ID_Config       = 3, /**< Config string ID */
+			STRING_ID_Tatacon      = 4, /**< Config string ID */
 		};
 
 	/* Macros: */
 		/** Endpoint address of the Keyboard HID reporting IN endpoint. */
 		#define KEYBOARD_EPADDR              (ENDPOINT_DIR_IN | 1)
+        
+        #define GENERIC_EPADDR               (ENDPOINT_DIR_IN | 2)
 
 		/** Size in bytes of the Keyboard HID reporting IN endpoint. */
 		#define KEYBOARD_EPSIZE              8
+		#define GENERIC_EPSIZE               64
 
 	/* Function Prototypes: */
 		uint16_t CALLBACK_USB_GetDescriptor(const uint16_t wValue,
