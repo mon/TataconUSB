@@ -93,7 +93,7 @@ typedef struct {
     uint8_t lastReport;
 } switch_t;
 
-static switch_t switches[4];
+static switch_t switches[KB_SWITCHES];
 static uint8_t switchesChanged = 1;
 static uint8_t nunchuckReady = 0;
 
@@ -111,7 +111,7 @@ void Nunchuck_gone(void) {
     SET(LED_PORT, DON_LED_PIN);
     SET(LED_PORT, KAT_LED_PIN);
     // Clear structs
-    for(int i = 0; i < 4; i++) {
+    for(int i = 0; i < KB_SWITCHES; i++) {
         switches[i].state = 0;
         if(switches[i].lastReport) {
             switchesChanged = 1;
@@ -158,9 +158,10 @@ uint8_t Nunchuck_ReadByte(uint8_t address) {
 void update_switches(void) {
     uint8_t data, i;
     
-    // Data for the TaTaCon is at this address
+    // Data for the buttons is at this address
     data = Nunchuck_ReadByte(0x05);
 
+    // Not using KB_SWITCHES, because of Tatacon limits
     for(i = 0; i < 4; i++) {
         // The I2C data starts at the 6th bit and goes down
         uint8_t newState = !(data & _BV(6-i));
@@ -178,7 +179,7 @@ int main(void)
 {
     uint8_t i;
     // Clear structs
-    for(i = 0; i < 4; i++) {
+    for(i = 0; i < KB_SWITCHES; i++) {
         switches[i].state = 0;
         switches[i].lastReport = 0;
     }
@@ -251,7 +252,7 @@ bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t* const HIDIn
         
         USB_KeyboardReport_Data_t* KeyboardReport = (USB_KeyboardReport_Data_t*)ReportData;
          
-        for(i = 0; i < 4; i++) {
+        for(i = 0; i < KB_SWITCHES; i++) {
             KeyboardReport->KeyCode[i] = switches[i].state ? tataConfig.switches[i] : 0;
             switches[i].lastReport = switches[i].state;
             // Update blinkenlights
@@ -272,6 +273,7 @@ bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t* const HIDIn
         uint8_t* ConfigReport = (uint8_t*)ReportData;
         memcpy(ConfigReport, &tataConfig, sizeof(tatacon_config_t));
         *ReportSize = TATACON_CONFIG_BYTES;
+        //TOGGLE(LED_PORT, DON_LED_PIN);
         return true;
     }
     *ReportSize = 0;

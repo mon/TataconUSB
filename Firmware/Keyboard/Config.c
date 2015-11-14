@@ -28,11 +28,7 @@ void InitConfig(void) {
 }
 
 void SetConfig(uint8_t* config) {
-    for(int i = 0; i < 4; i++) {
-        tataConfig.switches[i] = config[i];
-    }
-    tataConfig.ledsOn = config[4];
-    tataConfig.debounce = config[5];
+    memcpy(&tataConfig, config, sizeof(tatacon_config_t));
     
     eeprom_write_block(&tataConfig, &eeConfig, sizeof(tatacon_config_t));
 }

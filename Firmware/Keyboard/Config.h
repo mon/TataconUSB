@@ -5,11 +5,13 @@
 #include <stdbool.h>
 #include <LUFA/Drivers/USB/USB.h>
 
+// For ease of code sharing with the OsuPad
+#define KB_SWITCHES 4
 #define TATACON_CONFIG_BYTES 8
 
 typedef struct {
     // SWITCH ORDER: CenterLeft, RimLeft, CenterRight, RimRight
-    uint8_t switches[4];
+    uint8_t switches[KB_SWITCHES];
     bool ledsOn;
     uint8_t debounce;
 } tatacon_config_t;
