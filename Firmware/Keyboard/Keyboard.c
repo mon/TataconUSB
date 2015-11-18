@@ -43,9 +43,16 @@
 #define DON_LED_PIN  6
 #define KAT_LED_PIN  5
 
-#define SET(port, pin) port |= _BV(pin)
-#define CLEAR(port, pin) port &= ~_BV(pin)
-#define TOGGLE(port, pin) port ^= _BV(pin)
+// V1 has no LEDs
+#ifdef V1_BUILD
+    #define SET(port, pin)
+    #define CLEAR(port, pin)
+    #define TOGGLE(port, pin)
+#else
+    #define SET(port, pin) port |= _BV(pin)
+    #define CLEAR(port, pin) port &= ~_BV(pin)
+    #define TOGGLE(port, pin) port ^= _BV(pin)
+#endif
 
 /** Buffer to hold the previously generated Keyboard HID report, for comparison purposes inside the HID class driver. */
 static uint8_t PrevKeyboardHIDReportBuffer[sizeof(USB_KeyboardReport_Data_t)];
@@ -91,6 +98,7 @@ typedef struct {
     // optimise data sending
     uint8_t state;
     uint8_t lastReport;
+    uint8_t debounce;
 } switch_t;
 
 static switch_t switches[KB_SWITCHES];
@@ -143,7 +151,7 @@ uint8_t Nunchuck_ReadByte(uint8_t address) {
     }
 
     if(!i2c_start(NUNCHUCK_ADDR | I2C_WRITE)) {
-        i2c_write(0x05);
+        i2c_write(address);
         i2c_stop();
 
         i2c_start(NUNCHUCK_ADDR | I2C_READ);
@@ -165,8 +173,9 @@ void update_switches(void) {
     for(i = 0; i < 4; i++) {
         // The I2C data starts at the 6th bit and goes down
         uint8_t newState = !(data & _BV(6-i));
-        if(newState != switches[i].lastReport) {
+        if(!switches[i].debounce && newState != switches[i].lastReport) {
             switches[i].state = newState;
+            switches[i].debounce = tataConfig.debounce;
             switchesChanged = 1;
         }
     }
@@ -182,6 +191,7 @@ int main(void)
     for(i = 0; i < KB_SWITCHES; i++) {
         switches[i].state = 0;
         switches[i].lastReport = 0;
+        switches[i].debounce = 0;
     }
     
     InitConfig();
@@ -204,6 +214,11 @@ void SetupHardware()
 	/* Disable watchdog if enabled by bootloader/fuses */
 	MCUSR &= ~(1 << WDRF);
 	wdt_disable();
+    
+#ifdef V1_BUILD
+    CLKPR = (1 << CLKPCE); // enable a change to CLKPR
+	CLKPR = 0; // set the CLKDIV to 0 - was 0011b = div by 8 taking 8MHz to 1MHz
+#endif
 
 	/* Hardware Initialization */
     SET(LED_DIR, DON_LED_PIN);
@@ -335,4 +350,10 @@ void EVENT_USB_Device_StartOfFrame(void)
 {
 	HID_Device_MillisecondElapsed(&Keyboard_HID_Interface);
 	HID_Device_MillisecondElapsed(&Generic_HID_Interface);
+    
+    for(int i = 0; i < KB_SWITCHES; i++) {
+        if(switches[i].debounce) {
+            switches[i].debounce--;
+        }
+    }
 }

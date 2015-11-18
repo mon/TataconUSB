@@ -40,6 +40,9 @@ include $(LUFA_PATH)/Build/lufa_hid.mk
 include $(LUFA_PATH)/Build/lufa_avrdude.mk
 include $(LUFA_PATH)/Build/lufa_atprogram.mk
 
+v1: CC_FLAGS += -DV1_BUILD
+v1: all
+
 init: erase wfuse flashboot
 
 erase:

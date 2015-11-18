@@ -40,10 +40,18 @@
 
 ;***** Adapt these SCA and SCL port and pin definition to your target !!
 ;
-#define SDA     4		// SDA Port D, Pin 4
-#define SCL		3		// SCL Port D, Pin 3
-#define SDA_PORT        PORTD           // SDA Port D
-#define SCL_PORT        PORTD           // SCL Port D         
+; V1 had different I2C pinouts
+#ifdef V1_BUILD
+    #define SDA     1		// SDA Port D, Pin 4   
+    #define SCL		0		// SCL Port D, Pin 5
+    #define SDA_PORT        PORTD           // SDA Port D
+    #define SCL_PORT        PORTD           // SCL Port D
+#else
+    #define SDA     4		// SDA Port D, Pin 4
+    #define SCL		3		// SCL Port D, Pin 3
+    #define SDA_PORT        PORTD           // SDA Port D
+    #define SCL_PORT        PORTD           // SCL Port D    
+#endif
 
 ;******
 
