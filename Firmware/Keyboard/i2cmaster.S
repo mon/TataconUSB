@@ -94,13 +94,15 @@ i2c_delay_T2:        ; 4 cycles
 ;*************************************************************************
 	.func i2c_delay_40us
 i2c_delay_40us:        ; 4 cycles
-    ldi r16, 103      ; 1
+    push r16          ; 2
+    ldi r16, 102      ; 1
 delay:
     dec r16          ; 1
     brne delay       ; 2
     ; 1
-	ret          ; 5   "
-	.endfunc     ; total 320 cyles = 40 microsec with 8 Mhz crystal
+    pop r16      ; 2
+	ret          ; 5
+	.endfunc     ; total 321 cyles almost 40 microsec with 8 Mhz crystal
 
 
 ;*************************************************************************
