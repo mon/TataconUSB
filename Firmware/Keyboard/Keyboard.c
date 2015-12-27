@@ -112,29 +112,33 @@ static uint8_t nunchuckReady = 0;
 
 #ifdef DEBUG
 #define DEBUG_DELAY_MS 10
-static uint8_t debugDelay = DEBUG_DELAY_MS * 10;
+static uint8_t debugDelay = 100; // don't do anything for 100ms
 #endif
 
 //todo: neater
 #define NUNCHUCK_ADDR (0x52 << 1)
 void Nunchuck_back(void) {
-    nunchuckReady = 1;
-    // Turn LEDs off, it returned
-    CLEAR(LED_PORT, DON_LED_PIN);
-    CLEAR(LED_PORT, KAT_LED_PIN);
+    if(!nunchuckReady) {
+        nunchuckReady = 1;
+        // Turn LEDs off, it returned
+        CLEAR(LED_PORT, DON_LED_PIN);
+        CLEAR(LED_PORT, KAT_LED_PIN);
+    }
 }
 
 void Nunchuck_gone(void) {
     i2c_stop();
-    nunchuckReady = 0;
-    // Turn LEDs on until it returns
-    SET(LED_PORT, DON_LED_PIN);
-    SET(LED_PORT, KAT_LED_PIN);
-    // Clear structs
-    for(int i = 0; i < KB_SWITCHES; i++) {
-        switches[i].state = 0;
-        if(switches[i].state != switches[i].lastReport) {
-            switchesChanged = 1;
+    if(nunchuckReady) {
+        nunchuckReady = 0;
+        // Turn LEDs on until it returns
+        SET(LED_PORT, DON_LED_PIN);
+        SET(LED_PORT, KAT_LED_PIN);
+        // Clear structs
+        for(int i = 0; i < KB_SWITCHES; i++) {
+            switches[i].state = 0;
+            if(switches[i].state != switches[i].lastReport) {
+                switchesChanged = 1;
+            }
         }
     }
 }
@@ -172,6 +176,7 @@ uint8_t Nunchuck_ReadByte(uint8_t address) {
         i2c_start(NUNCHUCK_ADDR | I2C_READ);
         data = i2c_readNak();
         i2c_stop();
+        Nunchuck_back();
     } else {
         Nunchuck_gone();
     }

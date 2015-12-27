@@ -19,6 +19,9 @@
 ; Tweaked by monty for true 400KHz operation at 8MHz system clock on an
 ;  atmega16u2. Duty cycle adjusted for correct 400KHz spec adherence.
 ;
+;    7 cycles = 0.875us high
+;    13 cycles = 1.625us low
+;
 ; USAGE
 ;	These routines can be called from C, refere to file i2cmaster.h.
 ;       See example test_i2cmaster.c 
