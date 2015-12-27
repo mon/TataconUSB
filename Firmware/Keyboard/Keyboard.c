@@ -38,6 +38,11 @@
 #include "i2cmaster.h"
 #include "Config.h"
 
+#ifdef DEBUG
+#include "usbio.h"
+#include <util/delay.h>
+#endif
+
 #define LED_DIR  DDRD
 #define LED_PORT PORTD
 #define DON_LED_PIN  6
@@ -105,15 +110,22 @@ static switch_t switches[KB_SWITCHES];
 static uint8_t switchesChanged = 1;
 static uint8_t nunchuckReady = 0;
 
+#ifdef DEBUG
+#define DEBUG_DELAY_MS 10
+static uint8_t debugDelay = DEBUG_DELAY_MS * 10;
+#endif
+
 //todo: neater
 #define NUNCHUCK_ADDR (0x52 << 1)
 void Nunchuck_back(void) {
     nunchuckReady = 1;
-    // Turn LEDs on until it returns
+    // Turn LEDs off, it returned
     CLEAR(LED_PORT, DON_LED_PIN);
     CLEAR(LED_PORT, KAT_LED_PIN);
 }
+
 void Nunchuck_gone(void) {
+    i2c_stop();
     nunchuckReady = 0;
     // Turn LEDs on until it returns
     SET(LED_PORT, DON_LED_PIN);
@@ -121,11 +133,12 @@ void Nunchuck_gone(void) {
     // Clear structs
     for(int i = 0; i < KB_SWITCHES; i++) {
         switches[i].state = 0;
-        if(switches[i].lastReport) {
+        if(switches[i].state != switches[i].lastReport) {
             switchesChanged = 1;
         }
     }
 }
+
 void Nunchuck_Init(void) {
     // try to say hello
     if(!i2c_start(NUNCHUCK_ADDR | I2C_WRITE)) {
@@ -161,6 +174,29 @@ uint8_t Nunchuck_ReadByte(uint8_t address) {
         Nunchuck_gone();
     }
     return data;
+}
+
+// Starting at address, read n bytes and return the last
+void Nunchuck_ReadMany(uint8_t address, uint8_t *data, uint8_t count) {
+    
+    if(!nunchuckReady) {
+        Nunchuck_Init();
+    }
+
+    if(!i2c_start(NUNCHUCK_ADDR | I2C_WRITE)) {
+        i2c_write(address);
+        i2c_stop();
+
+        i2c_start(NUNCHUCK_ADDR | I2C_READ);
+        for(uint8_t i = 0; i < count-1; i++) {
+            data[i] = i2c_readAck();
+        }
+        data[count-1] = i2c_readNak();
+        i2c_stop();
+        Nunchuck_back();
+    } else {
+        Nunchuck_gone();
+    }
 }
 
 void update_switches(void) {
@@ -199,6 +235,37 @@ int main(void)
 	SetupHardware();
 
 	GlobalInterruptEnable();
+    
+#ifdef DEBUG
+    printf_P(PSTR("Tatacon to USB Debug Mode\n\n"));
+    uint8_t tmp[6];
+    Nunchuck_ReadMany(0xFA, tmp, 6);
+    if(nunchuckReady) {
+        // ID debug
+        printf_P(PSTR("Tatacon found with ID:\n"));
+        for(uint8_t i = 0; i < 6; i++) {
+            if(tmp[i] < 0x10) {
+                printf("0");
+            }
+            printf("%X ", tmp[i]);
+        }
+        printf("\n\n");
+        // Register debug
+        Nunchuck_ReadMany(0x00, tmp, 6);
+        printf_P(PSTR("Dumping registers 0x00 to 0x05:\n"));
+        for(uint8_t i = 0; i < 6; i++) {
+            if(tmp[i] < 0x10) {
+                printf("0");
+            }
+            printf("%X ", tmp[i]);
+        }
+        printf("\n\n");
+    } else {
+        printf_P(PSTR("Tatacon not found or not responding\n\n"));
+    }
+    // Switch debug
+    printf_P(PSTR("Key order: DL, KL, CR, KR\n"));
+#endif
 
 	for (;;)
 	{
@@ -223,6 +290,15 @@ void SetupHardware()
 	/* Hardware Initialization */
     SET(LED_DIR, DON_LED_PIN);
     SET(LED_DIR, KAT_LED_PIN);
+#ifdef DEBUG
+    init_usb_stdio();
+    SET(LED_PORT, DON_LED_PIN);
+    for(int i = 0; i < 32; i++) {
+        TOGGLE(LED_PORT, DON_LED_PIN);
+        TOGGLE(LED_PORT, KAT_LED_PIN);
+        _delay_ms(125);
+    }
+#endif
     if(tataConfig.ledsOn) {
         // Turn them on until we init with the nunchuck
         SET(LED_PORT, DON_LED_PIN);
@@ -249,12 +325,35 @@ bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t* const HIDIn
                                          void* ReportData,
                                          uint16_t* const ReportSize)
 {
-    uint8_t i;
     if(ReportType != HID_REPORT_ITEM_In) {
         *ReportSize = 0;
         return false;
     }
     if (HIDInterfaceInfo == &Keyboard_HID_Interface) {
+        USB_KeyboardReport_Data_t* KeyboardReport = (USB_KeyboardReport_Data_t*)ReportData;
+#ifdef DEBUG
+        memset(KeyboardReport, 0, sizeof(USB_KeyboardReport_Data_t));
+        update_switches();
+        if(switchesChanged) {
+            for(uint8_t i = 0; i < KB_SWITCHES; i++) {
+                printf("%d ", switches[i].state);
+                switches[i].lastReport = switches[i].state;
+            }
+            printf("\n");
+            switchesChanged = 0;
+        }
+        if(!debugDelay) {
+            uint8_t wroteData = make_report(KeyboardReport);
+            if(wroteData) {
+                debugDelay = DEBUG_DELAY_MS;
+                *ReportSize = sizeof(USB_KeyboardReport_Data_t);
+                return true;
+            } else {
+                *ReportSize = 0;
+                return false;
+            }
+        }
+#else
         update_switches();
         
         if(!switchesChanged) {
@@ -264,10 +363,8 @@ bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t* const HIDIn
         
         CLEAR(LED_PORT, DON_LED_PIN);
         CLEAR(LED_PORT, KAT_LED_PIN);
-        
-        USB_KeyboardReport_Data_t* KeyboardReport = (USB_KeyboardReport_Data_t*)ReportData;
          
-        for(i = 0; i < KB_SWITCHES; i++) {
+        for(uint8_t i = 0; i < KB_SWITCHES; i++) {
             KeyboardReport->KeyCode[i] = switches[i].state ? tataConfig.switches[i] : 0;
             switches[i].lastReport = switches[i].state;
             // Update blinkenlights
@@ -284,6 +381,7 @@ bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t* const HIDIn
          
         switchesChanged = 0;
         return true;
+#endif
     } else if(HIDInterfaceInfo == &Generic_HID_Interface) {
         uint8_t* ConfigReport = (uint8_t*)ReportData;
         memcpy(ConfigReport, &tataConfig, sizeof(tatacon_config_t));
@@ -356,4 +454,9 @@ void EVENT_USB_Device_StartOfFrame(void)
             switches[i].debounce--;
         }
     }
+#ifdef DEBUG
+    if(debugDelay) {
+        debugDelay--;
+    }
+#endif
 }
