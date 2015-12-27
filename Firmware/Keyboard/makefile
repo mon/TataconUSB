@@ -18,7 +18,7 @@ F_CPU        = 8000000
 F_USB        = $(F_CPU)
 OPTIMIZATION = s
 TARGET       = Keyboard
-SRC          = $(TARGET).c Descriptors.c i2cmaster.S Config.c $(LUFA_SRC_USB) $(LUFA_SRC_USBCLASS)
+SRC          = $(TARGET).c Descriptors.c i2cmaster.S Config.c usbio.c $(LUFA_SRC_USB) $(LUFA_SRC_USBCLASS)
 LUFA_PATH    = ../LUFA
 CC_FLAGS     = -DUSE_LUFA_CONFIG_HEADER -IConfig/
 LD_FLAGS     =
@@ -41,7 +41,13 @@ include $(LUFA_PATH)/Build/lufa_avrdude.mk
 include $(LUFA_PATH)/Build/lufa_atprogram.mk
 
 v1: CC_FLAGS += -DV1_BUILD
-v1: all
+v1: clean all
+
+debug: CC_FLAGS += -DDEBUG
+debug: clean flash
+
+v1debug: CC_FLAGS += -DV1_BUILD -DDEBUG
+v1debug: clean all
 
 init: erase wfuse flashboot
 
