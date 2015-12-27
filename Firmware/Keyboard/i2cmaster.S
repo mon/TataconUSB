@@ -13,8 +13,11 @@
 ;  
 ;       Based on the Atmel Application Note AVR300, corrected and adapted 
 ;       to GNU assembler and AVR-GCC C call interface
-;       Replaced the incorrect quarter period delays found in AVR300 with 
-;       half period delays. 
+;       Replaced the incorrect quarter period delays found in AVR300 with
+;       half period delays.
+
+; Tweaked by monty for true 400KHz operation at 8MHz system clock on an
+;  atmega16u2. Duty cycle adjusted for correct 400KHz spec adherence.
 ;
 ; USAGE
 ;	These routines can be called from C, refere to file i2cmaster.h.
@@ -42,15 +45,15 @@
 ;
 ; V1 had different I2C pinouts
 #ifdef V1_BUILD
-    #define SDA     1		// SDA Port D, Pin 4   
-    #define SCL		0		// SCL Port D, Pin 5
-    #define SDA_PORT        PORTD           // SDA Port D
-    #define SCL_PORT        PORTD           // SCL Port D
+    #define SDA      1 ; SDA Port D, Pin 4
+    #define SCL      0 ; SCL Port D, Pin 5
+    #define SDA_PORT PORTD
+    #define SCL_PORT PORTD
 #else
-    #define SDA     4		// SDA Port D, Pin 4
-    #define SCL		3		// SCL Port D, Pin 3
-    #define SDA_PORT        PORTD           // SDA Port D
-    #define SCL_PORT        PORTD           // SCL Port D    
+    #define SDA      4 ; SDA Port D, Pin 4
+    #define SCL      3 ; SCL Port D, Pin 3
+    #define SDA_PORT PORTD
+    #define SCL_PORT PORTD
 #endif
 
 ;******
@@ -78,17 +81,28 @@
 ;*************************************************************************
 	.stabs	"",100,0,0,i2c_delay_T2
 	.stabs	"i2cmaster.S",100,0,0,i2c_delay_T2
-	.func i2c_delay_T2	; delay 1.25 microsec with 8 Mhz crystal	
+	.func i2c_delay_T2	; delay 1.25 microsec with 8 Mhz crystal
 i2c_delay_T2:        ; 4 cycles
-	;rjmp 1f      ; 2   "
-;1:	nop          ; 1   "
-	ret          ; 3   "
-	.endfunc     ; total 10 cyles = 1.25 microsec with 8 Mhz crystal 
+	ret          ; 5   "
+	.endfunc     ; total 9 cyles = 1.25 microsec with 8 Mhz crystal, IO op happens on the 10th
+    
+;*************************************************************************
+; delay 40 microseconds, to give the slave time to do stuff
+;*************************************************************************
+	.func i2c_delay_40us
+i2c_delay_40us:        ; 4 cycles
+    ldi r16, 103      ; 1
+delay:
+    dec r16          ; 1
+    brne delay       ; 2
+    ; 1
+	ret          ; 5   "
+	.endfunc     ; total 320 cyles = 40 microsec with 8 Mhz crystal
 
 
 ;*************************************************************************
 ; Initialization of the I2C bus interface. Need to be called only once
-; 
+;
 ; extern void i2c_init(void)
 ;*************************************************************************
 	.global i2c_init
@@ -186,8 +200,13 @@ i2c_stop:
 	rcall	i2c_delay_T2	;delay T/2
 	cbi	SCL_DDR,SCL	;release SCL
 	rcall	i2c_delay_T2	;delay T/2
+i2c_stop_wait:
+    ;wait SCL high (in case wait states are inserted)
+	sbis	SCL_IN,SCL                                ; 2
+	rjmp	i2c_stop_wait
 	cbi	SDA_DDR,SDA	;release SDA
 	rcall	i2c_delay_T2	;delay T/2
+    rcall i2c_delay_40us ; delay 40us to let slave catch its breath
 	ret
 	.endfunc
 
@@ -202,39 +221,59 @@ i2c_stop:
 	.global i2c_write
 	.func	i2c_write
 i2c_write:
-	sec			;set carry flag
-	rol 	r24		;shift in carry and out bit one
-	rjmp	i2c_write_first
+	sec			;set carry flag                       ;
+	rol 	r24		;shift in carry and out bit one   ;
+	rjmp	i2c_write_first                           ;
 i2c_write_bit:
-	lsl	r24		;if transmit register empty
+	lsl	r24		;if transmit register empty           ; 1
+	breq	i2c_get_ack                               ; 1
+    nop                                               ; 1
 i2c_write_first:
-	breq	i2c_get_ack
-	sbi	SCL_DDR,SCL	;force SCL low
-	brcc	i2c_write_low
-	nop
-	cbi	SDA_DDR,SDA	;release SDA
-	rjmp	i2c_write_high
-i2c_write_low:
-	sbi	SDA_DDR,SDA	;force SDA low
-	rjmp	i2c_write_high
+    ; 7 since the last cbi
+	sbi	SCL_DDR,SCL	;force SCL low                    ; 2
+	brcc	i2c_write_low                             ; 1
+    nop                                               ; 1
+	cbi	SDA_DDR,SDA	;release SDA                      ; 2
+	rjmp	i2c_write_high                            ; 2
+i2c_write_low:                                        ; 1
+	sbi	SDA_DDR,SDA	;force SDA low                    ; 2
+	rjmp	i2c_write_high                            ; 2
 i2c_write_high:
-	rcall 	i2c_delay_T2	;delay T/2
-	cbi	SCL_DDR,SCL	;release SCL
-	rcall	i2c_delay_T2	;delay T/2
-	rjmp	i2c_write_bit
-	
-i2c_get_ack:
+    nop
+    nop
+    nop
+    nop
+    nop
+    ; 13 since the last
+	cbi	SCL_DDR,SCL	;release SCL                      ; 2
+i2c_write_wait:
+    ;wait SCL high (in case wait states are inserted)
+	sbis	SCL_IN,SCL                                ; 2
+	rjmp	i2c_write_wait
+
+	rjmp	i2c_write_bit                             ; 2
+
+i2c_get_ack:                                          ; 1
 	sbi	SCL_DDR,SCL	;force SCL low
 	cbi	SDA_DDR,SDA	;release SDA
-	rcall	i2c_delay_T2	;delay T/2
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
 	cbi	SCL_DDR,SCL	;release SCL
 i2c_ack_wait:
 	sbis	SCL_IN,SCL	;wait SCL high (in case wait states are inserted)
 	rjmp	i2c_ack_wait
-	
+
 	clr	r24		;return 0
 	sbic	SDA_IN,SDA	;if SDA high -> return 1
 	ldi	r24,1
+    sbi	SCL_DDR,SCL	;force SCL low
 	rcall	i2c_delay_T2	;delay T/2
 	clr	r25
 	ret
@@ -265,41 +304,58 @@ i2c_readAck:
 i2c_read:
 	ldi	r23,0x01	;data = 0x01
 i2c_read_bit:
-	sbi	SCL_DDR,SCL	;force SCL low
-	cbi	SDA_DDR,SDA	;release SDA (from previous ACK)
-	rcall	i2c_delay_T2	;delay T/2
-	
-	cbi	SCL_DDR,SCL	;release SCL
-	rcall	i2c_delay_T2	;delay T/2
-	
+	sbi	SCL_DDR,SCL	;force SCL low                     ; 2
+    nop                                                ; 1
+    nop                                                ; 1
+    nop                                                ; 1
+    nop                                                ; 1
+    nop                                                ; 1
+    nop                                                ; 1
+    nop                                                ; 1
+    nop                                                ; 1
+    nop                                                ; 1
+    nop                                                ; 1
+    nop                                                ; 1
+
+	cbi	SCL_DDR,SCL	;release SCL                       ; 2
+
 i2c_read_stretch:
-    sbis SCL_IN, SCL        ;loop until SCL is high (allow slave to stretch SCL)
+    ;loop until SCL is high (allow slave to stretch SCL)
+    sbis SCL_IN, SCL                                  ; 2
     rjmp	i2c_read_stretch
-    	
-	clc			;clear carry flag
-	sbic	SDA_IN,SDA	;if SDA is high
+                                                      ; 
+	clc			;clear carry flag                     ; 1
+	sbic	SDA_IN,SDA	;if SDA is high               ; 2
 	sec			;  set carry flag
-	
-	rol	r23		;store bit
-	brcc	i2c_read_bit	;while receive register not full
-	
+                                                      ; 
+	rol	r23		;store bit                            ; 1
+    ;while receive register not full
+	brcc	i2c_read_bit                              ; 2
+
 i2c_put_ack:
-	sbi	SCL_DDR,SCL	;force SCL low	
+	sbi	SCL_DDR,SCL	;force SCL low
 	cpi	r24,1
 	breq	i2c_put_ack_low	;if (ack=0)
 	cbi	SDA_DDR,SDA	;      release SDA
 	rjmp	i2c_put_ack_high
 i2c_put_ack_low:                ;else
 	sbi	SDA_DDR,SDA	;      force SDA low
+    nop
 i2c_put_ack_high:
-	rcall	i2c_delay_T2	;delay T/2
+	nop
+	nop
+	nop
+	nop
+	nop
 	cbi	SCL_DDR,SCL	;release SCL
 i2c_put_ack_wait:
 	sbis	SCL_IN,SCL	;wait SCL high
 	rjmp	i2c_put_ack_wait
-	rcall	i2c_delay_T2	;delay T/2
+	nop
 	mov	r24,r23
 	clr	r25
+    sbi	SCL_DDR,SCL	;force SCL low
+    cbi	SDA_DDR,SDA	;release SDA
 	ret
 	.endfunc
 

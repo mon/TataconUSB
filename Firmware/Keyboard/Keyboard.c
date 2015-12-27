@@ -145,11 +145,13 @@ void Nunchuck_Init(void) {
         i2c_write(0xF0);
         i2c_write(0x55);
         i2c_stop();
+        _delay_ms(25);
         
         i2c_start(NUNCHUCK_ADDR | I2C_WRITE);
         i2c_write(0xFB);
         i2c_write(0x00);
         i2c_stop();
+        _delay_ms(25);
         Nunchuck_back();
     } else {
         Nunchuck_gone();
