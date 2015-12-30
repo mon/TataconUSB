@@ -1,0 +1,25 @@
+{
+  "name": "TaTaConfig",
+  "description": "TaTaCon to USB Configurator",
+  "version": "0.1",
+  "manifest_version": 2,
+  "minimum_chrome_version": "38",
+  "app": {
+    "background": {
+      "scripts": ["main.js"]
+    }
+  },
+  "permissions": [
+    "hid",
+    {
+        "usbDevices":
+        [
+          // Config
+          { "vendorId": 5840, "productId": 2669 },
+          // Firmware update
+          { "vendorId": 1003, "productId": 8295 }
+        ]
+    }
+  ],
+  "icons": { "16": "calculator-16.png", "128": "calculator-128.png" }
+}

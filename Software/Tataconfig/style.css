@@ -1,0 +1,57 @@
+body, html {
+    height: 100%;
+}
+
+#waiting {
+    font-size: 20px;
+    font-weight: bold;
+    font-family: sans-serif;
+}
+
+#content {
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.tatacon {
+    position: relative;
+    width: 450px;
+    height: 450px;
+    background-image: url("tatacon.png");
+}
+
+.donL, .donR, .katL, .katR {
+    position: absolute;
+    font-size: 20px;
+}
+
+.donL, .donR {
+    top: 210px;
+}
+.katL, .katR {
+    top: 50px;
+}
+.donL {
+    left: 70px;
+}
+.donR {
+    right: 70px;
+}
+.katL {
+    left: 50px;
+}
+.katR {
+    right: 50px;
+}
+
+.title {
+    font-size: 30px;
+    font-weight: bold;
+    font-family: sans-serif;
+    text-align: center;
+}
+
+.configOption {
+    font-size: 17px;
+}
