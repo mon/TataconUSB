@@ -417,6 +417,11 @@ void CALLBACK_HID_Device_ProcessHIDReport(USB_ClassInfo_HID_Device_t* const HIDI
 {
     if(HIDInterfaceInfo == &Generic_HID_Interface && ReportType == HID_REPORT_ITEM_Out) {
         uint8_t* ConfigReport = (uint8_t*)ReportData;
+        // So we can upgrade firmware without having to hit the button
+        if(ConfigReport[TATACON_CONFIG_BYTES-1] == MAGIC_RESET_NUMBER) {
+            wdt_enable(WDTO_250MS);
+            while(1);
+        }
         SetConfig(ConfigReport);
     }
 }

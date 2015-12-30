@@ -72,8 +72,7 @@ const USB_Descriptor_HIDReport_Datatype_t PROGMEM GenericReport[] =
  */
 const USB_Descriptor_HIDReport_Datatype_t PROGMEM KeyboardReport[] =
 {
-	/* Use the HID class driver's standard Keyboard report, but expand to have
-     * the feature requests we crave
+	/* Use the HID class driver's standard Keyboard report
 	 *   Max simultaneous keys: 6
 	 */
 	HID_DESCRIPTOR_KEYBOARD(6)

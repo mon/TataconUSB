@@ -24,7 +24,8 @@ static tatacon_config_t defaults PROGMEM = {
         //HID_KEYBOARD_SC_K,
         //HID_KEYBOARD_SC_L },
     .ledsOn = true,
-    .debounce = 50
+    .debounce = 50,
+    .version = FIRMWARE_VERSION
 };
 
 uint8_t firstRun EEMEM; // init to 255
@@ -43,6 +44,8 @@ void InitConfig(void) {
 
 void SetConfig(uint8_t* config) {
     memcpy(&tataConfig, config, sizeof(tatacon_config_t));
+    // Version is set in firmware, not software
+    tataConfig.version = FIRMWARE_VERSION;
     
     eeprom_write_block(&tataConfig, &eeConfig, sizeof(tatacon_config_t));
 }

@@ -8,12 +8,15 @@
 // For ease of code sharing with the OsuPad
 #define KB_SWITCHES 4
 #define TATACON_CONFIG_BYTES 8
+#define MAGIC_RESET_NUMBER 42
+#define FIRMWARE_VERSION 1
 
 typedef struct {
     // SWITCH ORDER: CenterLeft, RimLeft, CenterRight, RimRight
     uint8_t switches[KB_SWITCHES];
     bool ledsOn;
     uint8_t debounce;
+    uint8_t version;
 } tatacon_config_t;
 
 extern tatacon_config_t tataConfig;

@@ -108,8 +108,8 @@ int make_report(USB_KeyboardReport_Data_t *KeyboardReport) {
             bytes_in_out_buffer--;
             
             /* Output the character via USB, converting to scancode */
-            KeyboardReport->KeyCode[0] = pgm_read_byte(&HIDTable[c]);
-            KeyboardReport->Modifier = pgm_read_byte(&modifierTable[c]);
+            KeyboardReport->KeyCode[0] = pgm_read_byte(&HIDTable[(uint8_t)c]);
+            KeyboardReport->Modifier = pgm_read_byte(&modifierTable[(uint8_t)c]);
             liftoff = 1;
             return 1;
         } else {
