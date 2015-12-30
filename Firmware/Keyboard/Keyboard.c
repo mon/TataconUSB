@@ -376,10 +376,12 @@ bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t* const HIDIn
             switches[i].lastReport = switches[i].state;
             // Update blinkenlights
             if(switches[i].state) {
-                if(i % 2 && tataConfig.ledsOn) { // odd indexes are kat, even don
-                    SET(LED_PORT, KAT_LED_PIN);
-                } else {
-                    SET(LED_PORT, DON_LED_PIN);
+                if(tataConfig.ledsOn) {
+                    if(i % 2) { // odd indexes are kat, even don
+                        SET(LED_PORT, KAT_LED_PIN);
+                    } else {
+                        SET(LED_PORT, DON_LED_PIN);
+                    }
                 }
             }
         }
