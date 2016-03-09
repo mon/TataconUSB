@@ -11,3 +11,5 @@ Hardware/TataconUSB.PcbDoc.htm
 *.eep
 *.bin
 *.elf
+Firmware/Bootloader/
+*.hex
