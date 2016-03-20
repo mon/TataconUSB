@@ -1,6 +1,5 @@
 (function() {
     var devices = [];
-    var waitingMessage = "Waiting for a device, plug one in!";
     var debounceOptions = [["Off", 0], ["Low", 15], ["Medium", 30], ["High", 50]];
     var configBytes = {
         donL : 0,
@@ -12,6 +11,8 @@
         version : 6,
         reset : 7
     };
+    
+    var magicResetNumber = 42;
     
     var newDevice = function(device) {
         if(device.vendorId == 0x16D0) { // Config mode
@@ -33,7 +34,7 @@
     }
     
     var createConfigUI = function(device) {
-        document.getElementById("waiting").textContent = "";
+        document.getElementById("waiting").style.display = "none";
         
         var ui = document.createElement("div");
         device.ui = ui;
@@ -145,9 +146,28 @@
             updateUI(device);
         }
         
+        var firmwareUpdate  = document.createElement("button");
+        device.firmwareUpdate = firmwareUpdate;
+        firmwareUpdate.type = "button";
+        firmwareUpdate.textContent = "Firmware update";
+        // Becomes enabled once config is unchanged
+        firmwareUpdate.disabled = false;
+        firmwareUpdate.onclick = function() {
+            console.log("Rebooting for firmware update");
+            device.config[configBytes.reset] = magicResetNumber;
+            chrome.hid.send(device.connId, 0, device.config.buffer, function() {
+                console.log("Reboot sent, bye bye!");
+                // Ignore the failure to send
+                if(chrome.runtime.lastError) {
+                    ;
+                }
+            });
+        }
+        
         buttons.appendChild(apply);
         buttons.appendChild(resetConfig);
         buttons.appendChild(resetDefaults);
+        buttons.appendChild(firmwareUpdate);
         config.appendChild(buttons);
         
         ui.appendChild(config);
@@ -183,9 +203,11 @@
         if(changed) {
             device.apply.disabled = false;
             device.resetConfig.disabled = false;
+            device.firmwareUpdate.disabled = true;
         } else {
             device.apply.disabled = true;
             device.resetConfig.disabled = true;
+            device.firmwareUpdate.disabled = false;
         }
     }
     
@@ -200,7 +222,7 @@
             }
         }
         if(devices.length == 0) {
-            document.getElementById("waiting").textContent = waitingMessage;
+            document.getElementById("waiting").style.display = "flex";
         }
         if(removed) {
             document.getElementById("content").removeChild(removed.ui);
@@ -208,7 +230,7 @@
     }
     
     window.addEventListener('load', function() {
-        document.getElementById("waiting").textContent = waitingMessage;
+        document.getElementById("waiting").style.display = "flex";
         chrome.hid.getDevices({}, function(devices) {
             if (chrome.runtime.lastError) {
               console.error("Unable to enumerate devices: " +
