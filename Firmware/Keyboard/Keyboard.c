@@ -115,6 +115,22 @@ static uint8_t nunchuckReady = 0;
 static uint8_t debugDelay = 100; // don't do anything for 100ms
 #endif
 
+uint32_t Boot_Key ATTR_NO_INIT;
+#define MAGIC_BOOT_KEY            0xDEADBE7A
+// offset * word size
+#define BOOTLOADER_START_ADDRESS  (0x1c00 * 2)
+
+void Bootloader_Jump_Check(void) ATTR_INIT_SECTION(3);
+void Bootloader_Jump_Check(void)
+{
+    // If the reset source was the bootloader and the key is correct, clear it and jump to the bootloader
+    if ((MCUSR & (1 << WDRF)) && (Boot_Key == MAGIC_BOOT_KEY))
+    {
+        Boot_Key = 0;
+        ((void (*)(void))BOOTLOADER_START_ADDRESS)();
+    }
+}
+
 //todo: neater
 #define NUNCHUCK_ADDR (0x52 << 1)
 void Nunchuck_back(void) {
@@ -421,6 +437,12 @@ void CALLBACK_HID_Device_ProcessHIDReport(USB_ClassInfo_HID_Device_t* const HIDI
         uint8_t* ConfigReport = (uint8_t*)ReportData;
         // So we can upgrade firmware without having to hit the button
         if(ConfigReport[TATACON_CONFIG_BYTES-1] == MAGIC_RESET_NUMBER) {
+            // With this uncommented, reboot fails. Odd.
+            //USB_Disable();
+            cli();
+
+            // Back to the bootloader
+            Boot_Key = MAGIC_BOOT_KEY;
             wdt_enable(WDTO_250MS);
             while(1);
         }

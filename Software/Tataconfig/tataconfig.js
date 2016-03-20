@@ -42,7 +42,7 @@
         
         var title = document.createElement("div");
         title.className = "title";
-        title.textContent = "Tatacon to USB v" + device.config[configBytes.version];
+        title.textContent = "Tatacon to USB v" + device.config[configBytes.version]/10;
         ui.appendChild(title);
         
         var tatacon = document.createElement("div");

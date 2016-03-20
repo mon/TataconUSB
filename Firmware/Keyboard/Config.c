@@ -13,21 +13,6 @@ static tatacon_config_t defaults PROGMEM = {
         HID_KEYBOARD_SC_Z,
         HID_KEYBOARD_SC_C,
         HID_KEYBOARD_SC_V },
-        // ---- monty
-        //HID_KEYBOARD_SC_X,
-        //HID_KEYBOARD_SC_Z,
-        //HID_KEYBOARD_SC_DOT_AND_GREATER_THAN_SIGN,
-        //HID_KEYBOARD_SC_SLASH_AND_QUESTION_MARK },
-        // ---- sand
-        //HID_KEYBOARD_SC_S,
-        //HID_KEYBOARD_SC_A,
-        //HID_KEYBOARD_SC_G,
-        //HID_KEYBOARD_SC_H },
-        // ---- tobuei
-        //HID_KEYBOARD_SC_S,
-        //HID_KEYBOARD_SC_A,
-        //HID_KEYBOARD_SC_K,
-        //HID_KEYBOARD_SC_L },
     .ledsOn = true,
     .debounce = 30
 };

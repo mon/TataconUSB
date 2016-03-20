@@ -49,7 +49,7 @@ debug: clean flash
 v1debug: CC_FLAGS += -DV1_BUILD -DDEBUG
 v1debug: clean all
 
-init: erase wfuse flashboot
+init: erase wfuse flashboot flash
 
 erase:
 	$(AVRDUDE) -e
