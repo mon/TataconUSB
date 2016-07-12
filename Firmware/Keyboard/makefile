@@ -69,4 +69,5 @@ flashboot:
 	$(AVRDUDE) -U flash:w:DFU/BootloaderHID.hex:i
 
 flash: all
+	sleep 1
 	python DFU/hid_bootloader_loader.py atmega16u2 Keyboard.hex

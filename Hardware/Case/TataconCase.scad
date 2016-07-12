@@ -22,11 +22,16 @@ board_clearance_bottom = 1.2; // USB connector shield pins
 
 board_height = board_clearance_bottom + board_thickness;
 
+switch_clear = 1.9;
+switch_diameter = 2.5 + fudge;
+switch_offsetx = ver == 5 ? 13.5 : 4.85;
+switch_offsety = ver == 5 ? 14   : 22.1;
+
 usb_width = 12.1 + fudge;
 usb_height = 4.5 + fudge;
 usb_relative_z = ver == 5 ? 0.6 : 0;
 
-usb_clip_offset = 4.9;
+usb_clip_offset = 5;
 // ver 4 clip must come further because of crystal leeway
 usb_clip_strength = ver == 5 ? 0.5 : 0.8;
 // ver 4 nub is too far forward
@@ -49,10 +54,6 @@ nunchuck_hole_height = 1.1;
 rear_cover_height = 0.8;
 rear_cover_length = 7;
 rear_cover_strength = 1.2;
-
-switch_diameter = 2.5 + fudge;
-switch_offsetx = ver == 5 ? 13.5 : 4.85;
-switch_offsety = ver == 5 ? 14   : 22.1;
 
 // cutout to see dem lights
 led_height = 1;
@@ -135,8 +136,6 @@ module port_holes() {
         //cube([nunchuck_width+wall_strength*4, wall_strength+fudge, board_height+nunchuck_height]);
 }
 
-switch_clear = 1.2;
-
 module entry_cutout() {
     translate([0,
        board_length-miniFudge,
@@ -203,6 +202,16 @@ module usb_clip() {
                usb_clip_offset - usb_nub_offset - usb_clip_strength*2,
                board_height+board_clearance_top])
     sharp_clip(usb_nub_width, usb_nub_strength);
+    
+    helper_length = 5;
+    helper_strength = 0.6;
+    translate([board_width/2,0,0])
+    rotate([0,-90,0])
+    linear_extrude(usb_width/2, center = true)
+    polygon(points=[[board_clearance_bottom+usb_relative_z,0],
+                    [0, helper_length],
+                    [0, helper_length - helper_strength*2],
+                    [board_clearance_bottom+usb_relative_z - helper_strength, 0]]);
 }
 
 module button_hole() {
