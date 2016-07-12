@@ -2,6 +2,9 @@
 A small dongle to connect your Wii taiko controller to your computer as a USB
 device, instead of using Bluetooth.
 
+[Purchase here](https://mon.im/tatacon/)  
+[User guide](UserGuide.md)
+
 ![Tatacon](http://mon.im/img/Tata.png)
 
 Features
