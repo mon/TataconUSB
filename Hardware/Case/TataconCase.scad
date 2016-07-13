@@ -209,8 +209,10 @@ module usb_clip() {
     rotate([0,-90,0])
     linear_extrude(usb_width/2, center = true)
     polygon(points=[[board_clearance_bottom+usb_relative_z,0],
-                    [0, helper_length],
-                    [0, helper_length - helper_strength*2],
+                    [board_clearance_bottom+usb_relative_z,fudge],
+                    [0, helper_length+fudge],
+                    [0, helper_length+fudge - helper_strength*2],
+                    [board_clearance_bottom+usb_relative_z - helper_strength,fudge],
                     [board_clearance_bottom+usb_relative_z - helper_strength, 0]]);
 }
 
