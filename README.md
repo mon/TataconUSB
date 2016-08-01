@@ -5,7 +5,7 @@ device, instead of using Bluetooth.
 [Purchase here](https://mon.im/tatacon/)  
 [User guide](UserGuide.md)
 
-![Tatacon](http://mon.im/img/Tata.png)
+![Tatacon](Render.png)
 
 Features
 - Uses an atmega16u2 and the LUFA USB stack
