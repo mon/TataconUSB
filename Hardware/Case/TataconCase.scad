@@ -9,8 +9,8 @@ bezRes = highRes ? 6 : 2;
 // 5 or 4
 ver = 5;
 
-// not all boards are cut equal, some need 1mm extra
-fat = 0;
+// not all boards are cut equal, some need 0.5mm extra, some even need 1mm
+fat = 1;
 
 // deal with tolerances
 fudge = 0.4;
@@ -18,25 +18,30 @@ miniFudge = 0.2;
 
 wall_strength = 0.8;
 
-board_length = ver == 5 ? 34 + fudge : 37.3 + fudge;
+usb_width = 12.1 + fudge;
+usb_height = 4.5 + fudge;
+usb_relative_z = ver == 5 ? 0.6 : 0;
+
+usb_ramp_length = 2;
+usb_ramp_width = usb_width;
+usb_ramp_strength = 0.6;
+
+board_length = (ver == 5 ? 34 + fudge : 37.3 + fudge) + usb_ramp_length/3;
 board_width = 16.3 + fudge + fat;
+
 board_thickness = 1.6;
 board_clearance_bottom = 1.2; // USB connector shield pins
-
 board_height = board_clearance_bottom + board_thickness;
 
 switch_clear = 1.9;
 switch_diameter = 2.5 + fudge;
 switch_offsetx = ver == 5 ? 13.5 + fat : 4.85;
-switch_offsety = ver == 5 ? 14   : 22.1;
+switch_offsety = (ver == 5 ? 14   : 22.1) + usb_ramp_length;
 
-usb_width = 12.1 + fudge;
-usb_height = 4.5 + fudge;
-usb_relative_z = ver == 5 ? 0.6 : 0;
-
-usb_clip_offset = 5;
+// the entire length isn't enough leeway, but leave no gap and the front can shatter
+usb_clip_offset = 5 + usb_ramp_length/3;
 // ver 4 clip must come further because of crystal leeway
-usb_clip_strength = ver == 5 ? 0.5 : 0.8;
+usb_clip_strength = ver == 5 ? 0.6 : 0.8;
 // ver 4 nub is too far forward
 usb_nub_strength = ver == 5 ? 0.4 : 0;
 usb_nub_offset = 1.7; // from the clip
@@ -51,7 +56,7 @@ nunchuck_height = 8.4 + fudge;
 nunchuck_relative_z = board_thickness;
 nunchuck_port_overlap = board_width - nunchuck_width - fudge*2;
 // For the rear cover
-nunchuck_hole_offset = 5.2;
+nunchuck_hole_offset = board_width/2 - 3.1;
 nunchuck_hole_height = 1.1;
 
 rear_cover_height = 0.8;
@@ -62,7 +67,7 @@ rear_cover_strength = 1.2;
 led_height = 1;
 led_length = 2.8;
 led_x = ver == 5 ? 0 : board_width+wall_strength;
-led_y = ver == 5 ? 18.4 : 21.4;
+led_y = (ver == 5 ? 18.4 : 21.4) + usb_ramp_length;
 
 // v5 has no crystal, make things look nicer
 crystal_bottom = ver == 5 ? 15 : 18.3;
@@ -92,9 +97,18 @@ module board_shape() {
 }
 
 module rounded() {
-    minkowski() {
-        board_shape();
-        sphere(wall_strength);
+    union() {
+        minkowski() {
+            board_shape();
+            sphere(wall_strength);
+        }
+        // It prints better with a nice flat face
+        // So it's not entirely rounded...
+        minkowski() {
+            cube([board_width,wall_strength,board_height+board_clearance_top]);
+            rotate([90,0,0])
+                cylinder(h = wall_strength, r = wall_strength);
+        }
     }
 }
 
@@ -198,17 +212,15 @@ module usb_clip() {
                board_height+board_clearance_top])
     sharp_clip(usb_nub_width, usb_nub_strength);
     
-    helper_length = 5;
-    helper_strength = 0.6;
     translate([board_width/2,0,0])
     rotate([0,-90,0])
-    linear_extrude(1, center = true)
+    linear_extrude(usb_ramp_width, center = true)
     polygon(points=[[board_clearance_bottom+usb_relative_z,0],
                     [board_clearance_bottom+usb_relative_z,fudge],
-                    [0, helper_length+fudge],
-                    [0, helper_length+fudge - helper_strength*2],
-                    [board_clearance_bottom+usb_relative_z - helper_strength,fudge],
-                    [board_clearance_bottom+usb_relative_z - helper_strength, 0]]);
+                    [fudge, usb_ramp_length+fudge],
+                    [fudge, usb_ramp_length+fudge - usb_ramp_strength*2],
+                    [board_clearance_bottom+usb_relative_z - usb_ramp_strength,fudge],
+                    [board_clearance_bottom+usb_relative_z - usb_ramp_strength, 0]]);
 }
 
 module button_hole() {

@@ -51,6 +51,8 @@ v1debug: clean all
 
 init: erase wfuse flashboot flash
 
+initboot: erase wfuse flashboot
+
 erase:
 	$(AVRDUDE) -e
 
