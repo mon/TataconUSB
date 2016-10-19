@@ -1,14 +1,13 @@
 /*
- * FILE: serialio.c
+ * FILE: usbio.c
  *
- * Written by Peter Sutton.
+ * Original UART code by Peter Sutton.
+ * Adapted for USB by William Toohey.
  * 
  * Module to allow standard output routines to be used via 
  * USB keyboard typing. The init_serial_stdio() method must be called before
  * any standard IO methods (e.g. printf). We use a circular buffer to 
- *  store output messages. (This allows us 
- * to print many characters at once to the buffer and have them 
- * output by the UART as speed permits.)
+ *  store output messages.
  */
 
 #include <usbio.h>
@@ -62,11 +61,7 @@ static int usb_put_char(char c, FILE* stream) {
 	/* Add the character to the buffer for transmission if there
 	 * is space to do so. We advance the insert_pos to the next
 	 * character position. If this is beyond the end of the buffer
-	 * we wrap around back to the beginning of the buffer 
-	 * NOTE: we disable interrupts before modifying the buffer. This
-	 * prevents the ISR from modifying the buffer at the same time.
-	 * We reenable them if they were enabled when we entered the
-	 * function.
+	 * we wrap around back to the beginning of the buffer
 	*/
     // Drop overrun
     if(bytes_in_out_buffer >= OUTPUT_BUFFER_SIZE) {
