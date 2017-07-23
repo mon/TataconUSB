@@ -7,7 +7,7 @@ device, instead of using Bluetooth.
 
 ![Tatacon](Render.png)
 
-Features
+## Features
 - Uses an atmega16u2 and the LUFA USB stack
 - 1ms response time.
 - Sweet LEDs (can be turned off)
@@ -17,13 +17,13 @@ Features
 - Config app allows future firmware updates to add more features
 - No drivers required!
 
-##Building firmware:
+## Building firmware:
 At console, run `make`. You will need AVR GCC installed.
 
-##Building software:
+## Building software:
 It's a Chrome web app. Install it like a normal dev app.
 
-##Building hardware:
+## Building hardware:
 Send v5 Gerbers to a PCB fab and have fun with QFN soldering. If you want
 a little less fiddling, use the seeed_bom.csv file along with the Gerbers
 and use Seedstudio's Fusion PCBA service. Use a board thickness of 8mm.
