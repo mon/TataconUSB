@@ -6,11 +6,8 @@ highRes = 1;
 $fn = highRes ? 32 : 4;
 bezRes = highRes ? 6 : 2;
 
-// 5 or 4
-ver = 5;
-
 // not all boards are cut equal, some need 0.5mm extra, some even need 1mm
-fat = 1;
+fat = 0.5;
 
 // deal with tolerances
 fudge = 0.4;
@@ -20,13 +17,14 @@ wall_strength = 0.8;
 
 usb_width = 12.1 + fudge;
 usb_height = 4.5 + fudge;
-usb_relative_z = ver == 5 ? 0.6 : 0;
+usb_relative_z = 0.6;
 
 usb_ramp_length = 2;
 usb_ramp_width = usb_width;
 usb_ramp_strength = 0.6;
 
-board_length = (ver == 5 ? 34 + fudge : 37.3 + fudge) + usb_ramp_length/3;
+pcb_length = 34;
+board_length = pcb_length + fudge + usb_ramp_length/3;
 board_width = 16.3 + fudge + fat;
 
 board_thickness = 1.6;
@@ -35,21 +33,21 @@ board_height = board_clearance_bottom + board_thickness;
 
 switch_clear = 1.9;
 switch_diameter = 2.5 + fudge;
-switch_offsetx = ver == 5 ? 13.5 + fat : 4.85;
-switch_offsety = (ver == 5 ? 14   : 22.1) + usb_ramp_length;
+switch_offsetx = 13.5 + fat;
+switch_offsety = 14 + usb_ramp_length;
 
 // the entire length isn't enough leeway, but leave no gap and the front can shatter
 usb_clip_offset = 5 + usb_ramp_length/3;
-// ver 4 clip must come further because of crystal leeway
-usb_clip_strength = ver == 5 ? 0.6 : 0.8;
-// ver 4 nub is too far forward
-usb_nub_strength = ver == 5 ? 0.4 : 0;
+usb_clip_strength = 0.6;
+usb_nub_strength = 0.4;
 usb_nub_offset = 1.7; // from the clip
 usb_nub_width = 0.7;
 
-board_clearance_top = ver == 5 ? usb_height - (board_thickness - usb_relative_z) : 3.3 + fudge; // height of crystal
+board_clearance_top = usb_height - (board_thickness - usb_relative_z);
 
 nunchuck_width = 14.7 + fudge;
+// for styling the clip to go inside the legs
+nunchuck_legs_width = 12;
 nunchuck_overhang = 0.6;
 nunchuck_length = 12.9 - nunchuck_overhang + fudge;
 nunchuck_height = 8.4 + fudge;
@@ -59,22 +57,22 @@ nunchuck_port_overlap = board_width - nunchuck_width - fudge*2;
 nunchuck_hole_offset = board_width/2 - 3.1;
 nunchuck_hole_height = 1.1;
 
-rear_cover_height = 0.8;
+rear_cover_height = 1;
 rear_cover_length = 7;
 rear_cover_strength = 1.2;
 
 // cutout to see dem lights
 led_height = 1;
 led_length = 2.8;
-led_x = ver == 5 ? 0 : board_width+wall_strength;
-led_y = (ver == 5 ? 18.4 : 21.4) + usb_ramp_length;
+led_x = 0;
+led_y = 18.4 + usb_ramp_length;
 
-// v5 has no crystal, make things look nicer
-crystal_bottom = ver == 5 ? 15 : 18.3;
+// v5 has no crystal but v4 did, make things look nicer
+crystal_bottom = 15;
 crystal_length = 11.4;
 
 // Keeps the PCB in place
-lip_strength = 0.8;
+lip_strength = 1.2;
 
 module board_shape() {
     translate([board_width,0,0])
@@ -143,10 +141,10 @@ module port_holes() {
                board_clearance_bottom + usb_relative_z])
         cube([usb_width, wall_strength, usb_height]);
     // nunchuck connector
-    translate([board_width/2 - nunchuck_width/2,
+    translate([0,
                board_length - fudge,
                0])
-        cube([nunchuck_width, wall_strength+fudge, board_height+nunchuck_height]);
+        cube([board_width, wall_strength+fudge, board_height+nunchuck_height]);
 }
 
 module entry_cutout() {
@@ -217,8 +215,8 @@ module usb_clip() {
     linear_extrude(usb_ramp_width, center = true)
     polygon(points=[[board_clearance_bottom+usb_relative_z,0],
                     [board_clearance_bottom+usb_relative_z,fudge],
-                    [fudge, usb_ramp_length+fudge],
-                    [fudge, usb_ramp_length+fudge - usb_ramp_strength*2],
+                    [fudge*2, usb_ramp_length+fudge],
+                    [fudge*2, usb_ramp_length+fudge - usb_ramp_strength*2],
                     [board_clearance_bottom+usb_relative_z - usb_ramp_strength,fudge],
                     [board_clearance_bottom+usb_relative_z - usb_ramp_strength, 0]]);
 }
@@ -250,18 +248,37 @@ module branding() {
 
 // modularised so we can use it for cutouts in the main case
 module rear_clip_locks(height = rear_cover_height) {
-    width = board_width - lip_strength*2 - fudge;
+    outerWidth = board_width - lip_strength*2 - fudge;
+    width = nunchuck_legs_width;
+    offset = outerWidth - width;
+    translate([(outerWidth-width)/2,0,0])
     linear_extrude(height)
     difference() {
         union() {
             square([width, rear_cover_length]);
-            polygon(points=[[0,0],
+            
+            translate([rear_cover_strength/2, 0])
+            hull() {
+                circle(d = rear_cover_strength*2);
+                translate([-offset,0])
+                circle(d = rear_cover_strength);
+            }
+            
+            translate([width - rear_cover_strength/2, 0])
+            hull() {
+                circle(d = rear_cover_strength*2);
+                translate([offset,0])
+                circle(d = rear_cover_strength);
+            }
+            
+            // Old method, a bit sharper
+            /*polygon(points=[[0,0],
                         [0,rear_cover_strength],
-                        [-lip_strength,rear_cover_strength]]);
+                        [-offset,rear_cover_strength]]);
             translate([width,0,0])
             polygon(points=[[0,0],
                         [0,rear_cover_strength],
-                        [lip_strength,rear_cover_strength]]);
+                        [offset,rear_cover_strength]]);*/
         };
         translate([rear_cover_strength, -rear_cover_strength, 0])
         square([width - rear_cover_strength*2, rear_cover_length]);
@@ -276,9 +293,9 @@ module rear_clip() {
         // The "clip" section
         rear_clip_locks();
         // The various fillins to cover the back
-        bottomGap = board_clearance_bottom + fudge;
-        boardSurface = bottomGap + board_thickness - fudge;
-        outerHeight = bottomGap + board_thickness + switch_clear - fudge*2.5;
+        bottomGap = board_clearance_bottom;
+        boardSurface = board_height;
+        outerHeight = board_height + switch_clear - fudge*2.5;
         outerEdge = -lip_strength;
         
         translate([0,rear_cover_length,0])
@@ -286,8 +303,7 @@ module rear_clip() {
         linear_extrude(wall_strength)
         polygon(points=[
                     [0,0],
-                    [0,bottomGap],
-                    [outerEdge,bottomGap],
+                    [outerEdge,0],
                     [outerEdge,outerHeight],
                     // there's a little hole in the nunchuck but not much
                     [fudge,outerHeight],
@@ -303,8 +319,7 @@ module rear_clip() {
                     [width-fudge,boardSurface],
                     [width-fudge,outerHeight],
                     [width-outerEdge,outerHeight],
-                    [width-outerEdge,bottomGap],
-                    [width,bottomGap],
+                    [width-outerEdge,0],
                     [width,0]]);
     };
 }
@@ -319,9 +334,6 @@ module board() {
                 button_hole();
                 led_hole();
                 branding();
-                // clip cutouts
-                translate([wall_strength + miniFudge, board_length + wall_strength - rear_cover_length, 0])
-                    rear_clip_locks(board_clearance_bottom);
             };
             smooth_ports();
             usb_clip();
@@ -330,8 +342,8 @@ module board() {
 }
 
 // Uncomment for printing
-rotate([90,0,0])
-board();
+//rotate([90,0,0])
+//board();
 // Uncomment to see how it meshes with the case
 //translate([wall_strength*2 + fudge/2, board_length + wall_strength*2 - rear_cover_length, wall_strength + miniFudge/2])
 //rear_clip();

@@ -5,7 +5,7 @@
 
 #define MAGIC_NUMBER 42
 
-static tatacon_config_t defaults PROGMEM = {
+static const tatacon_config_t defaults PROGMEM = {
     .switches = {
         // SWITCH ORDER: CenterLeft, RimLeft, CenterRight, RimRight
         // ---- osu default
