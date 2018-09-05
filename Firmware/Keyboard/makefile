@@ -73,3 +73,7 @@ flashboot:
 flash: all
 	sleep 1
 	py -2 DFU/hid_bootloader_loader.py atmega16u2 Keyboard.hex
+
+flashC: all
+	sleep 1
+	../../lufa-LUFA-170418/Bootloaders/HID/HostLoaderApp/hid_bootloader_cli -mmcu=atmega16u2 -r Keyboard.hex
