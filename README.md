@@ -36,3 +36,19 @@ Program the HID bootloader and clock fuses via `make init` and an SPI programmer
 The makefile is by default setup to use the USBAsp. I recommend pogo pins
 in a breadboard + USB connection for power.
 From there, program by hitting the hardware reset button, then `make flash`.
+
+
+
+## Linux use
+In order to use with the chrome configuration app, linux users must edit their udev rules.
+
+### UDEV rules
+Write in  /etc/udev/rules.d/50-tatacon.rules:
+```
+#Original firmware for PC/OSU
+ATTRS{manufacturer}=="mon.im", MODE:="0664", GROUP:="plugdev"
+
+#Switch/WiiU Hori Pokken Pad
+SUBSYSTEM=="usb", ATTR{idVendor}=="0f0d", ATTR{idProduct}=="0092", MODE="0664", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="0f0d", ATTRS{idProduct}=="0092",  MODE="0664", GROUP="plugdev"
+```
