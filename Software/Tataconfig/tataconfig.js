@@ -28,7 +28,7 @@
       donR : 2,
       katR : 3,
     };
-    var VERSION_OSU = 1;
+    var VERSION_OSU = 0;
     var VERSION_SWITCH = 2;
     var majorVersion;
     var version;
