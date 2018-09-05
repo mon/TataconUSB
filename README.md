@@ -23,7 +23,12 @@ To build the PC firmware navigate to `firmware/Keyboard`.
 To build the Nintendo Switch firmware navigate to `firmware/SwitchPro`.
 Run `make`. You will need AVR GCC installed.
 
-To install hit the reset button, then `make flash`.
+To install hit the reset button, then `make flash` to use the Python loader(Windows) or `make flashC` to use the C loader(unix). 
+
+Python loader requires pywinusb (https://pypi.python.org/pypi/pywinusb/) and
+IntelHex (https://pypi.python.org/pypi/IntelHex/) libraries. 
+
+C loader requires compiling with libusb-dev (Ubuntu) installed.
 
 ## Building software:
 It's a Chrome web app. Install it like a normal dev app.
