@@ -47,7 +47,14 @@ The makefile is by default setup to use the USBAsp. I recommend pogo pins
 in a breadboard + USB connection for power.
 From there, program by hitting the hardware reset button, then `make flash`.
 
+## Nintendo Switch firmware
+The Nintendo Switch firmware is based off of work by @progmem, who created the the proof-of-concept Hori Pokken Pad LUFA [firmware](https://github.com/progmem/Switch-Fightstick) and @shinyquagsire23, who extended it to create a [Splatoon 2 image printer](https://github.com/shinyquagsire23/Switch-Fightstick).
 
+The firmware imitates the Hori Pokken Pad, which when connected to a Switch, running V3.0.0 or above, is picked up as a Pro controller.
+
+By default, when plugged in the firmware performs the sync command L + R, A, in order to pass through the new controller screen.
+
+Drum hits can be changed to any Switch Pro Controller buttons using the chrome configuration app.
 
 ## Linux use
 In order to use with the chrome configuration app, linux users must edit their udev rules.
@@ -62,3 +69,6 @@ ATTRS{manufacturer}=="mon.im", MODE:="0664", GROUP:="plugdev"
 SUBSYSTEM=="usb", ATTR{idVendor}=="0f0d", ATTR{idProduct}=="0092", MODE="0664", GROUP="plugdev"
 KERNEL=="hidraw*", ATTRS{idVendor}=="0f0d", ATTRS{idProduct}=="0092",  MODE="0664", GROUP="plugdev"
 ```
+
+
+
