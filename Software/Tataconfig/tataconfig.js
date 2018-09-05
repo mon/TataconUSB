@@ -1,7 +1,8 @@
 (function() {
     var devices = [];
     var debounceOptions = [["Off", 0], ["Low", 15], ["Medium", 30], ["High", 50]];
-    var configBytes = {
+    var configBytes;
+    var configBytesV1 = {
         donL : 0,
         katL : 1,
         donR : 2,
@@ -11,20 +12,47 @@
         version : 6,
         reset : 7
     };
-    
+    var configBytesV2 = {
+        donL : 0,
+        katL : 2,
+        donR : 4,
+        katR : 6,
+        leds : 8,
+        debounce : 9,
+        version : 10,
+        reset : 11,
+    };
+    var configKeyV2 = {
+      donL : 0,
+      katL : 1,
+      donR : 2,
+      katR : 3,
+    };
+    var VERSION_OSU = 1;
+    var VERSION_SWITCH = 2;
+    var majorVersion;
+    var version;
     var magicResetNumber = 42;
-    
+    // USB device filter to get config device (Hori gamepad also appears otherwise)
+    var tataconConfigFilter = 65500;
+    // Valid vendor IDs including mon.im's OSU vendor and Hori Vendor IDs
+    var vendorIds = [0x16D0, 0x0F0D];
     var newDevice = function(device) {
-        if(device.vendorId == 0x16D0) { // Config mode
+        // Grab device matching our vendor IDs and the config profile
+        // Perform filter here, as filter doesn't work on listener
+        if(vendorIds.includes(device.vendorId) && device.collections[0].usagePage == tataconConfigFilter) {
             console.log("Added new device with ID " + device.deviceId);
             chrome.hid.connect(device.deviceId, function(connection) {
+
                 var dev = {devId: device.deviceId, connId : connection.connectionId};
+                console.log(device);
                 devices.push(dev);
                 chrome.hid.receive(connection.connectionId, function(id, data) {
                     var view = new Uint8ClampedArray(data);
                     dev.config = view;
                     console.log("Got config: " + view);
                     dev.newConfig = view.slice(0);
+                    dev.data = data;
                     createConfigUI(dev);
                 })
             });
@@ -42,7 +70,18 @@
         
         var title = document.createElement("div");
         title.className = "title";
-        title.textContent = "Tatacon to USB v" + device.config[configBytes.version]/10;
+        version = device.config[device.config.length - 2]/10;
+        // Get truncated version number (OSU/Switch)
+        majorVersion = (version|0);
+        // Set config bytes layout based on version (8bit vs 16bit uints)
+        if (majorVersion == VERSION_OSU) {
+          title.textContent = "Tatacon to USB (v";
+          configBytes = configBytesV1;
+        } else if (majorVersion == VERSION_SWITCH) {
+          title.textContent = "Tatacon to Switch (v";
+          configBytes = configBytesV2;
+        }
+        title.textContent += device.config[device.config.length - 2]/10 + ")";
         ui.appendChild(title);
         
         var tatacon = document.createElement("div");
@@ -53,16 +92,34 @@
             select.className = swtch;
             device[swtch] = select;
             tatacon.appendChild(select);
-            
-            scancodes.forEach(function(code) {
+            if (majorVersion == VERSION_OSU) {
+                scancodes.forEach(function(code) {
                 var option = document.createElement("option");
                 option.value = code.value;
                 option.textContent = code.name;
                 select.appendChild(option);
             });
+          } else if (majorVersion == VERSION_SWITCH) {
+            switchcodes.forEach(function(code) {
+                var option = document.createElement("option");
+                option.value = code.value;
+                option.textContent = code.name;
+                select.appendChild(option);
+            });
+          }
             select.onchange = function() {
+              console.log(device.newConfig);
+              console.log("Version:" + majorVersion);
+              if (majorVersion == VERSION_SWITCH) {
+                // Write new button to buffer as little endian uint16
+                var dv = new DataView(device.newConfig.buffer);
+                dv.setUint16(configBytes[swtch], select.value, true);
+                console.log(device.newConfig);                
+              } 
+              else if(majorVersion == VERSION_OSU) {
                 device.newConfig[configBytes[swtch]] = select.value;
-                updateUI(device);
+              }
+              updateUI(device);
             }
         });
         
@@ -137,10 +194,19 @@
         resetDefaults.textContent = "Defaults";
         resetDefaults.onclick = function() {
             // SWITCH ORDER: CenterLeft, RimLeft, CenterRight, RimRight
+            if (majorVersion == VERSION_OSU) {
             device.newConfig[configBytes.donL] = 0x1B; // X
             device.newConfig[configBytes.katL] = 0x1D; // Z
             device.newConfig[configBytes.donR] = 0x06; // C
             device.newConfig[configBytes.katR] = 0x19; // V
+          } else if (majorVersion == VERSION_SWITCH) {
+            // Set defaults (little endian uint16)
+            var dv = new DataView(device.newConfig.buffer);
+            dv.setUint16(configBytes.donL, 0x10, true); // L
+            dv.setUint16(configBytes.katL, 0x400, true); // LSTICK
+            dv.setUint16(configBytes.donR, 0x20, true); // R
+            dv.setUint16(configBytes.katR, 0x800, true); // RSTICK
+          }
             device.newConfig[configBytes.leds] = 1; // LEDs on
             device.newConfig[configBytes.debounce] = debounceOptions[2][1]; // medium debounce
             updateUI(device);
@@ -177,7 +243,15 @@
     
     var updateUI = function(device) {
         ["donL", "katL", "donR", "katR"].forEach(function(swtch) {
+          if (majorVersion == VERSION_OSU) {
             device[swtch].value = device.newConfig[configBytes[swtch]];
+            
+          } else if (majorVersion == VERSION_SWITCH) {
+            // Read button info as little endian uint16
+            var dv = new DataView(device.newConfig.buffer);
+            device[swtch].value = dv.getUint16(configBytes[swtch], true);
+            console.log(device[swtch].value);
+          }
         });
         
         device.leds.checked = device.newConfig[configBytes.leds];
@@ -237,11 +311,29 @@
                             chrome.runtime.lastError.message);
               return;
             }
+            console.log(devices);
             devices.forEach(newDevice);
         })
         chrome.hid.onDeviceAdded.addListener(newDevice);
         chrome.hid.onDeviceRemoved.addListener(deviceRemoved);
     });
+
+var switchcodes = [
+{name: "Y",       value: 0x01},
+{name: "B",       value: 0x02},
+{name: "A",       value: 0x04},
+{name: "X",       value: 0x08},
+{name: "L",       value: 0x10},
+{name: "R",       value: 0x20},
+{name: "ZL",      value: 0x40},
+{name: "ZR",      value: 0x80},
+{name: "MINUS",   value: 0x100},
+{name: "PLUS",    value: 0x200},
+{name: "LCLICK",  value: 0x400},
+{name: "RCLICK",  value: 0x800},
+{name: "HOME",    value: 0x1000},
+{name: "CAPTURE", value: 0x2000}
+]
 
 var scancodes = [
   {name: "A", value: 0x04},

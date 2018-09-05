@@ -15,6 +15,7 @@
         "usbDevices":
         [
           { "vendorId": 5840, "productId": 2669, "__comment" : "Configuration" },
+          { "vendorId": 3853, "productId": 146, "__comment" : "Configuration Switch Controller" },
           { "vendorId": 1003, "productId": 8295, "__comment" : "Firmware update" }
         ]
     }
