@@ -1,5 +1,5 @@
 # TataconUSB
-A small dongle to connect your Wii taiko controller to your computer as a USB
+A small dongle to connect your Wii taiko controller to your Nintendo Switch or computer as a USB
 device, instead of using Bluetooth.
 
 [Purchase here](https://mon.im/tatacon/)  
@@ -13,12 +13,17 @@ device, instead of using Bluetooth.
 - Sweet LEDs (can be turned off)
 - Responds so fast you can bounce your sticks and get multi hits. Can be turned off with Debounce feature.
 - Tested working on official, Hori and knockoff controllers
-- Windows, Linux, Mac compatible + [cross platform Chrome app for configuration](https://chrome.google.com/webstore/detail/tataconfig/ndeibflmpllogilncdmoajadcopjkchg)
+- Nintendo Switch, Windows, Linux, Mac compatible + [cross platform Chrome app for configuration](https://chrome.google.com/webstore/detail/tataconfig/ndeibflmpllogilncdmoajadcopjkchg)
 - Config app allows future firmware updates to add more features
 - No drivers required!
 
 ## Building firmware:
-At console, run `make`. You will need AVR GCC installed.
+Open a console.
+To build the PC firmware navigate to `firmware/Keyboard`.
+To build the Nintendo Switch firmware navigate to `firmware/SwitchPro`.
+Run `make`. You will need AVR GCC installed.
+
+To install hit the reset button, then `make flash`.
 
 ## Building software:
 It's a Chrome web app. Install it like a normal dev app.
