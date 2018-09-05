@@ -264,7 +264,7 @@ void GetNextReport(USB_JoystickReport_Input_t* const reportData) {
             for(i = 0; i < TATACON_SWITCHES; i++) {
                 // The I2C data starts at the 6th bit and goes down
                 uint8_t newState = !(data & _BV(TATACON_BUTTONS_START - i));
-                if(newState && !switches[i].debounce) {
+                if(!switches[i].debounce && switches[i].state != newState) {
                     SET(LED_PORT, KAT_LED_PIN);
                     reportData->Button |= tataConfig.switches[i];
                     switches[i].state = newState;
