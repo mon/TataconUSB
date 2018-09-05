@@ -78,8 +78,8 @@ flashboot:
 
 flash: all
 	sleep 1
-	python2 DFU/hid_bootloader_loader.py atmega16u2 Joystick.hex
+	python2 ../DFUHID/hid_bootloader_loader.py atmega16u2 Joystick.hex
 
 flashC: all
 	sleep 1
-	../../lufa-LUFA-170418/Bootloaders/HID/HostLoaderApp/hid_bootloader_cli -mmcu=atmega16u2 -r Joystick.hex
+	../DFUHID/hid_bootloader_cli -mmcu=atmega16u2 -r Joystick.hex
