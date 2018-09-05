@@ -12,7 +12,7 @@ static const tatacon_config_t defaults PROGMEM = {
         // ---- osu default
         SWITCH_LCLICK,
         SWITCH_L,
-        SWITCH_A,
+        SWITCH_RCLICK,
         SWITCH_R },
     .ledsOn = true,
     .debounce = 30

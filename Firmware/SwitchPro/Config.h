@@ -7,9 +7,9 @@
 
 // For ease of code sharing with the OsuPad
 #define KB_SWITCHES 4
-#define TATACON_CONFIG_BYTES 8
+#define TATACON_CONFIG_BYTES 12
 #define MAGIC_RESET_NUMBER 42
-#define FIRMWARE_VERSION 1
+#define FIRMWARE_VERSION 20
 
 typedef struct {
     // SWITCH ORDER: CenterLeft, RimLeft, CenterRight, RimRight

@@ -1,5 +1,5 @@
 #include "Descriptors.h"
-
+#include "Config.h"
 // HID Descriptors.
 const USB_Descriptor_HIDReport_Datatype_t PROGMEM JoystickReport[] = {
 	HID_RI_USAGE_PAGE(8,1), /* Generic Desktop */
@@ -57,6 +57,32 @@ const USB_Descriptor_HIDReport_Datatype_t PROGMEM JoystickReport[] = {
 	HID_RI_END_COLLECTION(0),
 };
 
+/** HID class report descriptor. This is a special descriptor constructed with values from the
+ *  USBIF HID class specification to describe the reports and capabilities of the HID device. This
+ *  descriptor is parsed by the host and its contents used to determine what data (and in what encoding)
+ *  the device will send, and what it may be sent back from the host. Refer to the HID specification for
+ *  more details on HID report descriptors.
+ */
+const USB_Descriptor_HIDReport_Datatype_t PROGMEM GenericReport[] =
+{
+	HID_RI_USAGE_PAGE(16, 0xFFDC), /* Vendor Page 0xDC */
+	HID_RI_USAGE(8, 0xFB), /* Vendor Usage 0xFB */
+	HID_RI_COLLECTION(8, 0x01), /* Vendor Usage 1 */
+	HID_RI_USAGE(8, 0x02), /* Vendor Usage 2 */
+	HID_RI_LOGICAL_MINIMUM(8, 0x00),
+	HID_RI_LOGICAL_MAXIMUM(8, 0xFF),
+	HID_RI_REPORT_SIZE(8, 8),
+	HID_RI_REPORT_COUNT(8, TATACON_CONFIG_BYTES),
+	HID_RI_OUTPUT(8, HID_IOF_DATA | HID_IOF_VARIABLE | HID_IOF_ABSOLUTE | HID_IOF_NON_VOLATILE),
+    
+    HID_RI_USAGE(8, 0x02), /* Vendor Usage 2 */
+	HID_RI_LOGICAL_MINIMUM(8, 0x00),
+	HID_RI_LOGICAL_MAXIMUM(8, 0xFF),
+	HID_RI_REPORT_SIZE(8, 8),
+	HID_RI_REPORT_COUNT(8, TATACON_CONFIG_BYTES),
+	HID_RI_INPUT(8, HID_IOF_DATA | HID_IOF_VARIABLE | HID_IOF_ABSOLUTE | HID_IOF_NON_VOLATILE),
+	HID_RI_END_COLLECTION(0),
+};
 // Device Descriptor Structure
 const USB_Descriptor_Device_t PROGMEM DeviceDescriptor = {
 	.Header                 = {.Size = sizeof(USB_Descriptor_Device_t), .Type = DTYPE_Device},
@@ -86,7 +112,7 @@ const USB_Descriptor_Configuration_t PROGMEM ConfigurationDescriptor = {
 			.Header                 = {.Size = sizeof(USB_Descriptor_Configuration_Header_t), .Type = DTYPE_Configuration},
 
 			.TotalConfigurationSize = sizeof(USB_Descriptor_Configuration_t),
-			.TotalInterfaces        = 1,
+			.TotalInterfaces        = 2,
 
 			.ConfigurationNumber    = 1,
 			.ConfigurationStrIndex  = NO_DESCRIPTOR,
@@ -142,6 +168,42 @@ const USB_Descriptor_Configuration_t PROGMEM ConfigurationDescriptor = {
 			.EndpointSize           = JOYSTICK_EPSIZE,
 			.PollingIntervalMS      = 0x05
 		},
+	.HID2_Interface =
+		{
+			.Header                 = {.Size = sizeof(USB_Descriptor_Interface_t), .Type = DTYPE_Interface},
+
+			.InterfaceNumber        = INTERFACE_ID_Generic,
+			.AlternateSetting       = 0x00,
+
+			.TotalEndpoints         = 1,
+
+			.Class                  = HID_CSCP_HIDClass,
+			.SubClass               = HID_CSCP_NonBootSubclass,
+			.Protocol               = HID_CSCP_NonBootProtocol,
+
+			.InterfaceStrIndex      = STRING_ID_Config
+		},
+
+	.HID2_VendorHID =
+		{
+			.Header                 = {.Size = sizeof(USB_HID_Descriptor_HID_t), .Type = HID_DTYPE_HID},
+
+			.HIDSpec                = VERSION_BCD(1,1,1),
+			.CountryCode            = 0x00,
+			.TotalReportDescriptors = 1,
+			.HIDReportType          = HID_DTYPE_Report,
+			.HIDReportLength        = sizeof(GenericReport)
+		},
+
+	.HID2_ReportINEndpoint =
+		{
+			.Header                 = {.Size = sizeof(USB_Descriptor_Endpoint_t), .Type = DTYPE_Endpoint},
+
+			.EndpointAddress        = GENERIC_EPADDR,
+			.Attributes             = (EP_TYPE_INTERRUPT | ENDPOINT_ATTR_NO_SYNC | ENDPOINT_USAGE_DATA),
+			.EndpointSize           = GENERIC_EPSIZE,
+			.PollingIntervalMS      = 255
+		},
 };
 
 // Language Descriptor Structure
@@ -150,7 +212,8 @@ const USB_Descriptor_String_t PROGMEM LanguageString = USB_STRING_DESCRIPTOR_ARR
 // Manufacturer and Product Descriptor Strings
 const USB_Descriptor_String_t PROGMEM ManufacturerString = USB_STRING_DESCRIPTOR(L"HORI CO.,LTD.");
 const USB_Descriptor_String_t PROGMEM ProductString      = USB_STRING_DESCRIPTOR(L"POKKEN CONTROLLER");
-
+const USB_Descriptor_String_t PROGMEM ConfigString = USB_STRING_DESCRIPTOR(L"Tatacon Config");
+const USB_Descriptor_String_t PROGMEM TataconString = USB_STRING_DESCRIPTOR(L"Tatacon");
 // USB Device Callback - Get Descriptor
 uint16_t CALLBACK_USB_GetDescriptor(
 	const uint16_t wValue,
@@ -174,8 +237,7 @@ uint16_t CALLBACK_USB_GetDescriptor(
 			Size    = sizeof(USB_Descriptor_Configuration_t);
 			break;
 		case DTYPE_String:
-			switch (DescriptorNumber)
-			{
+			switch (DescriptorNumber) {
 				case STRING_ID_Language:
 					Address = &LanguageString;
 					Size    = pgm_read_byte(&LanguageString.Header.Size);
@@ -188,16 +250,37 @@ uint16_t CALLBACK_USB_GetDescriptor(
 					Address = &ProductString;
 					Size    = pgm_read_byte(&ProductString.Header.Size);
 					break;
+				case STRING_ID_Config:
+					Address = &ConfigString;
+					Size    = pgm_read_byte(&ConfigString.Header.Size);
+					break;
+				case STRING_ID_Tatacon:
+					Address = &TataconString;
+					Size    = pgm_read_byte(&TataconString.Header.Size);
+					break;
 			}
-
 			break;
 		case DTYPE_HID:
-			Address = &ConfigurationDescriptor.HID_JoystickHID;
-			Size    = sizeof(USB_HID_Descriptor_HID_t);
-			break;
+			switch (wIndex) {
+				case INTERFACE_ID_Joystick:
+					Address = &ConfigurationDescriptor.HID_JoystickHID;
+					Size    = sizeof(USB_HID_Descriptor_HID_t);
+					break;
+				case INTERFACE_ID_Generic:
+					Address = &ConfigurationDescriptor.HID2_VendorHID;
+					break;
+			}
 		case DTYPE_Report:
-			Address = &JoystickReport;
-			Size    = sizeof(JoystickReport);
+			switch (wIndex) {
+				case INTERFACE_ID_Joystick:
+					Address = &JoystickReport;
+					Size    = sizeof(JoystickReport);
+					break;
+				case INTERFACE_ID_Generic:
+					Address = &GenericReport;
+					Size    = sizeof(GenericReport);
+					break;
+			}
 			break;
 	}
 

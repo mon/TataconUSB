@@ -17,12 +17,19 @@ typedef struct
 	USB_HID_Descriptor_HID_t              HID_JoystickHID;
 	USB_Descriptor_Endpoint_t             HID_ReportOUTEndpoint;
 	USB_Descriptor_Endpoint_t             HID_ReportINEndpoint;
+
+	// Generic HID Interface
+	USB_Descriptor_Interface_t            HID2_Interface;
+	USB_HID_Descriptor_HID_t              HID2_VendorHID;
+	USB_Descriptor_Endpoint_t             HID2_ReportINEndpoint;
 } USB_Descriptor_Configuration_t;
 
 // Device Interface Descriptor IDs
 enum InterfaceDescriptors_t
 {
 	INTERFACE_ID_Joystick = 0, /**< Joystick interface descriptor ID */
+    INTERFACE_ID_Generic =  1,  /**< Generic interface descriptor ID  */
+
 };
 
 // Device String Descriptor IDs
@@ -31,6 +38,8 @@ enum StringDescriptors_t
 	STRING_ID_Language     = 0, // Supported Languages string descriptor ID (must be zero)
 	STRING_ID_Manufacturer = 1, // Manufacturer string ID
 	STRING_ID_Product      = 2, // Product string ID
+	STRING_ID_Config       = 3, /**< Config string ID */
+	STRING_ID_Tatacon      = 4, /**< Config string ID */
 };
 
 // Macros
@@ -45,6 +54,11 @@ enum StringDescriptors_t
 #define DTYPE_HID                 0x21
 // Descriptor Header Type - HID Class HID Report Descriptor
 #define DTYPE_Report              0x22
+ 
+#define GENERIC_EPADDR               (ENDPOINT_DIR_IN | 2)
+
+/** Size in bytes of the Keyboard HID reporting IN endpoint. */
+#define GENERIC_EPSIZE               TATACON_CONFIG_BYTES
 
 // Function Prototypes
 uint16_t CALLBACK_USB_GetDescriptor(

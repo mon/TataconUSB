@@ -6,16 +6,23 @@
 #include "usbio.h"
 #include <util/delay.h>
 #endif
-static const tatacon_config_t tata= {
-    .switches = {
-        // SWITCH ORDER: CenterLeft, RimLeft, CenterRight, RimRight
-        // ---- osu default
-        SWITCH_LCLICK,
-        SWITCH_L,
-        SWITCH_RCLICK,
-        SWITCH_R },
-    .ledsOn = true,
-    .debounce = 30
+
+static uint8_t PrevGenericHIDReportBuffer[TATACON_CONFIG_BYTES];
+
+USB_ClassInfo_HID_Device_t Generic_HID_Interface =
+{
+    .Config =
+        {
+            .InterfaceNumber              = INTERFACE_ID_Generic,
+            .ReportINEndpoint             =
+                {
+                    .Address              = GENERIC_EPADDR,
+                    .Size                 = GENERIC_EPSIZE,
+                    .Banks                = 1,
+                },
+            .PrevReportINBuffer           = PrevGenericHIDReportBuffer,
+            .PrevReportINBufferSize       = sizeof(PrevGenericHIDReportBuffer),
+        },
 };
 // V1 hardware has no LEDs
 #ifdef V1_BUILD
@@ -54,15 +61,18 @@ static uint8_t switchesChanged = 1;
 static uint8_t nunchuckReady = 0;
 // Main entry point.
 int main(void) {
+    InitConfig();
+
 	// We'll start by performing hardware and peripheral setup.
 	SetupHardware();
 	// We'll then enable global interrupts for our use.
 	GlobalInterruptEnable();
 	// Once that's done, we'll enter an infinite loop.
-	for (;;)
-	{
-		// We need to run our task to process and deliver data for our IN and OUT endpoints.
-		HID_Task();
+	for (;;) {
+        // We need to run our task to process and deliver data for our IN and OUT endpoints.
+        HID_Device_USBTask(&Generic_HID_Interface);
+        HID_Task();
+
 		// We also need to run the main USB management task.
 		USB_USBTask();
 	}
@@ -254,11 +264,11 @@ void GetNextReport(USB_JoystickReport_Input_t* const reportData) {
             for(i = 0; i < TATACON_SWITCHES; i++) {
                 // The I2C data starts at the 6th bit and goes down
                 uint8_t newState = !(data & _BV(TATACON_BUTTONS_START - i));
-                if(newState) {
+                if(newState && !switches[i].debounce) {
                     SET(LED_PORT, KAT_LED_PIN);
-                    reportData->Button |= tata.switches[i];
+                    reportData->Button |= tataConfig.switches[i];
                     switches[i].state = newState;
-                    switches[i].debounce = tata.debounce;
+                    switches[i].debounce = tataConfig.debounce;
                     switchesChanged = 1;
                 }
             }
@@ -327,29 +337,84 @@ void EVENT_USB_Device_ConfigurationChanged(void) {
 	// We setup the HID report endpoints.
 	ConfigSuccess &= Endpoint_ConfigureEndpoint(JOYSTICK_OUT_EPADDR, EP_TYPE_INTERRUPT, JOYSTICK_EPSIZE, 1);
 	ConfigSuccess &= Endpoint_ConfigureEndpoint(JOYSTICK_IN_EPADDR, EP_TYPE_INTERRUPT, JOYSTICK_EPSIZE, 1);
+    HID_Device_ConfigureEndpoints(&Generic_HID_Interface);
 
 	// We can read ConfigSuccess to indicate a success or failure at this point.
     if (ConfigSuccess) {
         CLEAR(LED_PORT, DON_LED_PIN);
         CLEAR(LED_PORT, KAT_LED_PIN);
     }
+    USB_Device_EnableSOFEvents();
+
 }
 
 // Process control requests sent to the device from the USB host.
 void EVENT_USB_Device_ControlRequest(void) {
 	// We can handle two control requests: a GetReport and a SetReport.
+    HID_Device_ProcessControlRequest(&Generic_HID_Interface);
 
 	// Not used here, it looks like we don't receive control request from the Switch.
 }
 
-// // Event handler for the USB device Start Of Frame event.
-// void EVENT_USB_Device_StartOfFrame(void) {
-// 	//HID_Device_MillisecondElapsed(&Keyboard_HID_Interface);
-// //	HID_Device_MillisecondElapsed(&Generic_HID_Interface);
+// Event handler for the USB device Start Of Frame event.
+void EVENT_USB_Device_StartOfFrame(void) {
+	HID_Device_MillisecondElapsed(&Generic_HID_Interface);
     
-//     for(int i = 0; i < TATACON_SWITCHES; i++) {
-//         if(switches[i].debounce) {
-//             switches[i].debounce--;
-//         }
-//     }
-// }
+    for(int i = 0; i < TATACON_SWITCHES; i++) {
+        if(switches[i].debounce) {
+            switches[i].debounce--;
+        }
+    }
+}
+
+bool CALLBACK_HID_Device_CreateHIDReport(USB_ClassInfo_HID_Device_t* const HIDInterfaceInfo,
+                                         uint8_t* const ReportID,
+                                         const uint8_t ReportType,
+                                         void* ReportData,
+                                         uint16_t* const ReportSize)
+{
+    if(ReportType != HID_REPORT_ITEM_In) {
+        *ReportSize = 0;
+        return false;
+    }
+     if(HIDInterfaceInfo == &Generic_HID_Interface) {
+        uint8_t* ConfigReport = (uint8_t*)ReportData;
+        memcpy(ConfigReport, &tataConfig, sizeof(tatacon_config_t));
+        *ReportSize = TATACON_CONFIG_BYTES;
+        //TOGGLE(LED_PORT, DON_LED_PIN);
+        return true;
+    }
+    *ReportSize = 0;
+    return false;
+}
+
+/** HID class driver callback function for the processing of HID reports from the host.
+ *
+ *  \param[in] HIDInterfaceInfo  Pointer to the HID class interface configuration structure being referenced
+ *  \param[in] ReportID    Report ID of the received report from the host
+ *  \param[in] ReportType  The type of report that the host has sent, either HID_REPORT_ITEM_Out or HID_REPORT_ITEM_Feature
+ *  \param[in] ReportData  Pointer to a buffer where the received report has been stored
+ *  \param[in] ReportSize  Size in bytes of the received HID report
+ */
+void CALLBACK_HID_Device_ProcessHIDReport(USB_ClassInfo_HID_Device_t* const HIDInterfaceInfo,
+                                          const uint8_t ReportID,
+                                          const uint8_t ReportType,
+                                          const void* ReportData,
+                                          const uint16_t ReportSize)
+{
+    if(HIDInterfaceInfo == &Generic_HID_Interface && ReportType == HID_REPORT_ITEM_Out) {
+        uint8_t* ConfigReport = (uint8_t*)ReportData;
+        // So we can upgrade firmware without having to hit the button
+        if(ConfigReport[TATACON_CONFIG_BYTES-1] == MAGIC_RESET_NUMBER) {
+            // With this uncommented, reboot fails. Odd.
+            //USB_Disable();
+            cli();
+
+            // Back to the bootloader
+            Boot_Key = MAGIC_BOOT_KEY;
+            wdt_enable(WDTO_250MS);
+            while(1);
+        }
+        SetConfig(ConfigReport);
+    }
+}
