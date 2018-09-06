@@ -55,7 +55,7 @@ enum StringDescriptors_t
 // Descriptor Header Type - HID Class HID Report Descriptor
 #define DTYPE_Report              0x22
  
-#define GENERIC_EPADDR               (ENDPOINT_DIR_IN | 2)
+#define GENERIC_EPADDR               (ENDPOINT_DIR_IN | 3)
 
 /** Size in bytes of the Keyboard HID reporting IN endpoint. */
 #define GENERIC_EPSIZE               TATACON_CONFIG_BYTES
