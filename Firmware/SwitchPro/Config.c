@@ -11,9 +11,9 @@ static const tatacon_config_t defaults PROGMEM = {
         // SWITCH ORDER: CenterLeft, RimLeft, CenterRight, RimRight
         // ---- osu default
         SWITCH_LCLICK,
-        SWITCH_L,
+        SWITCH_ZL,
         SWITCH_RCLICK,
-        SWITCH_R },
+        SWITCH_ZR },
     .ledsOn = true,
     .debounce = 30
 };
