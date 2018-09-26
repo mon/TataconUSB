@@ -24,7 +24,7 @@ usb_ramp_width = usb_width;
 usb_ramp_strength = 0.6;
 
 pcb_length = 34;
-board_length = pcb_length + fudge + usb_ramp_length/3;
+board_length = pcb_length + fudge + usb_ramp_length/4;
 board_width = 16.3 + fudge + fat;
 
 board_thickness = 1.6;

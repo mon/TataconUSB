@@ -40,6 +40,13 @@ include $(LUFA_PATH)/Build/lufa_hid.mk
 include $(LUFA_PATH)/Build/lufa_avrdude.mk
 include $(LUFA_PATH)/Build/lufa_atprogram.mk
 
+$(TARGET)_WithBoot.hex: $(TARGET).hex DFU/BootloaderHID.hex
+	cat $(TARGET).hex | grep -v '^:00000001FF' > $(TARGET)_WithBoot.hex
+	cat DFU/BootloaderHID.hex >> $(TARGET)_WithBoot.hex
+
+#init: $(TARGET)_WithBoot.hex
+#	$(AVRDUDE) -U lfuse:w:0xde:m -U hfuse:w:0xdb:m -U efuse:w:0xf6:m -U flash:w:$(TARGET)_WithBoot.hex:i
+
 v1: CC_FLAGS += -DV1_BUILD
 v1: clean all
 

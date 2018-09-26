@@ -13,3 +13,4 @@ Hardware/TataconUSB.PcbDoc.htm
 *.elf
 Firmware/Bootloader/
 *.hex
+Hardware/Case/outputs/
