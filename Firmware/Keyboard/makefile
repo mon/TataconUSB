@@ -79,4 +79,8 @@ flashboot:
 
 flash: all
 	sleep 1
-	py -2 DFU/hid_bootloader_loader.py atmega16u2 Keyboard.hex
+	py -2 ../DFUHID/hid_bootloader_loader.py atmega16u2 Keyboard.hex
+
+flashC: all
+	sleep 1
+	../DFUHID/hid_bootloader_cli -mmcu=atmega16u2 -r Keyboard.hex

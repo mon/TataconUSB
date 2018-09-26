@@ -1,13 +1,13 @@
 /*
              LUFA Library
-     Copyright (C) Dean Camera, 2014.
+     Copyright (C) Dean Camera, 2017.
 
   dean [at] fourwalledcubicle [dot] com
            www.lufa-lib.org
 */
 
 /*
-  Copyright 2014  Dean Camera (dean [at] fourwalledcubicle [dot] com)
+  Copyright 2017  Dean Camera (dean [at] fourwalledcubicle [dot] com)
 
   Permission to use, copy, modify, distribute, and sell this
   software and its documentation for any purpose is hereby granted
@@ -157,6 +157,10 @@
 			#include "AVR8/YUN/Board.h"
 		#elif (BOARD == BOARD_MICRO)
 			#include "AVR8/MICRO/Board.h"
+		#elif (BOARD == BOARD_POLOLUMICRO)
+			#include "AVR8/POLOLUMICRO/Board.h"
+		#elif (BOARD == BOARD_XPLAINED_MINI)
+			#include "AVR8/XPLAINED_MINI/Board.h"
 		#else
 			#include "Board/Board.h"
 		#endif
